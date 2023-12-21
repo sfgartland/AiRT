@@ -1,3 +1,4 @@
+import shutil
 from openai import OpenAI
 import whisper
 
@@ -14,9 +15,6 @@ from loguru import logger
 import time
 import datetime
 
-# from fileHandler import cutAudio
-
-logger.add("logs/transcriber-{time}.log")
 
 def getAudioSegments(folder):
     return glob.glob(f"{folder}/*")
@@ -50,7 +48,7 @@ def generateTranscriptLocally(input, model):
     # logger.info(result)
     return result["text"]
 
-
+# TODO Should this be moved to the fileHandler file?
 def writeToFile(transcript, output):
     makeSureFolderExists(output)
     with open(output, "w", encoding="utf-8") as outputFile:
@@ -59,7 +57,7 @@ def writeToFile(transcript, output):
 
 #TODO This currently stops when it encounters an error, could be better for it to keep going on next file
     # I've tried, does it work?
-
+# TODO Should this be moved to the fileHandler file?
 def batchProcessMediaFiles(inputFolder, outputFolder, fileFilter=lambda x: x):
     inputFolder = Path(inputFolder)
     outputFolder = Path(outputFolder)
@@ -85,12 +83,6 @@ def batchProcessMediaFiles(inputFolder, outputFolder, fileFilter=lambda x: x):
                 logger.info(f"Encountered error while processing '{inputFile}'")
                 logger.error(err)
 
-def getMp3sToTranscribe(inputFolder, fileFilter=lambda x: x):
-    inputFolder = Path(inputFolder)
-
-    inputFiles = [Path(file) for file in glob.glob(
-        f"{inputFolder}/**/*.mp3", recursive=True)]
-    return fileFilter(inputFiles)
 
 def getTranscriptInOutPaths(inputFolder, outputFolder, modelName, fileFilter=lambda x: x):
     """Reusable function to get input and output paths for transcriptions"""
@@ -128,18 +120,17 @@ def batchTranscribeMp3s(inputFolder, outputFolder, model, modelName):
 def createWhisperModel(modelName="base.en"):
     return whisper.load_model(modelName),modelName
 
-# generateTranscriptLocally("testing/test-14-lengths-60/test-14-1.mp3")
-# completePipeline("PHILOS25A/5_November 15th 2023/tester-0.mp4",
-#                  "transcript-25a.txt")
 
-# writeToFile(generateTranscriptLocally("workbench/trimmed-audio-temp-2023-Dec-18--15-19-43-988025.mp3"), "workbench/transcript.txt")
+def copyFilesToGoogleColab(inputFolder, outputFolder, filePattern="**/*.mp3", fileFilter=lambda fileList: fileList):
+    inputFolder = Path(inputFolder)
+    outputFolder = Path(outputFolder)
+    logger.info(f"Copying files from {inputFolder} to {outputFolder} for processing in Google Colab")
 
-
-# batchTranscribeMp3s("output/PHILOS133", "output/PHILOS133")
-# batchProcessMediaFiles("PHILOS133", "output/PHILOS133")
-
-model,modelName = createWhisperModel()
-
-
-batchTranscribeMp3s("oxford_CPR", "oxford_CPR", model, modelName)
-# batchProcessMediaFiles("PHILOS133", "output/PHILOS133")
+    inputFiles = fileFilter([Path(file) for file in glob.glob(
+        f"{inputFolder}/{filePattern}", recursive=True)])
+    
+    for inputFile in inputFiles:
+        outputPath = outputFolder / inputFile.relative_to(inputFolder)
+        makeSureFolderExists(outputPath)
+        logger.info(f"Copying {inputFile}->{outputPath}")
+        shutil.copy(inputFile, outputPath)
