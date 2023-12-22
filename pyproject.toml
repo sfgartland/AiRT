@@ -13,4 +13,4 @@ authors = [
 ]
 readme = "README.md"
 dynamic = ["version"]
-dependencies = ["pydub", "openai", "rich", "loguru", "whisper @ git+https://github.com/openai/whisper.git"]
+dependencies = ["pydub", "openai", "rich", "loguru", "openai-whisper"]
