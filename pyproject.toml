@@ -1,0 +1,16 @@
+
+
+[build-system]
+requires = [
+  "setuptools >= 40.9.0",
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "AI_researcher"
+authors = [
+    {name = "Severin Gartland", email = "sfgartland@hotmail.com"},
+]
+readme = "README.md"
+dynamic = ["version"]
+dependencies = ["pydub", "openai", "rich", "loguru", "whisper @ git+https://github.com/openai/whisper.git"]

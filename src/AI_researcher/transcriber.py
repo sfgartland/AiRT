@@ -6,7 +6,7 @@ import os
 import glob
 from pathlib import Path
 
-from lib.fileHandler import cutAudio, Mp4ToMp3, trimLeadingSilence, generateWorkbenchPath, makeSureFolderExists
+from .fileHandler import cutAudio, Mp4ToMp3, trimLeadingSilence, generateWorkbenchPath, makeSureFolderExists
 
 from rich import print
 

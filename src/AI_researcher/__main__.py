@@ -1,4 +1,4 @@
-from transcriber import copyFilesToGoogleColab, createWhisperModel, batchTranscribeMp3s, batchProcessMediaFiles
+from .transcriber import copyFilesToGoogleColab, createWhisperModel, batchTranscribeMp3s, batchProcessMediaFiles
 from loguru import logger
 
 from pathlib import Path
@@ -23,5 +23,6 @@ def filter(fileList):
     
     return [file for file in fileList if file.samefile(getFilesInSameFolder(file)[-1])]
 
-
-copyFilesToGoogleColab("output/PHILOS133", "G:/Min disk/google-Collab-testing-folder/PHILOS133", fileFilter=filter)
+if __name__ == "__main__":
+    print("hello")
+    # copyFilesToGoogleColab("output/PHILOS133", "G:/Min disk/google-Collab-testing-folder/PHILOS133", fileFilter=filter)
