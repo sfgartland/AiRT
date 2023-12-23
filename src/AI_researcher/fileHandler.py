@@ -1,3 +1,4 @@
+import math
 import os
 import subprocess
 import shutil
@@ -13,9 +14,12 @@ from rich import print
 from loguru import logger
 
 
-def runCommand(command):
+def runCommand(command, output_stdout=False):
     p = subprocess.run(command, capture_output=True, shell=True, universal_newlines=True)
-    logger.debug(p.stdout)
+    if output_stdout:
+        logger.info(p.stdout)
+    else:
+        logger.debug(p.stdout)
     logger.error(p.stderr)
 
 def generateWorkbenchPath(inputFile, workbenchPath="workbench"):
@@ -36,14 +40,14 @@ def makeSureFolderExists(folderPath):
 
 
 def m3u8UrlToMp4(url, output):
-    runCommand(f'ffmpeg -i "{url}" -codec copy {output}')
+    runCommand(f'ffmpeg -loglevel error -i "{url}" -codec copy {output}')
 
 
 def Mp4ToMp3(input, output):
     """Uses ffmpeg to make mp3 from mp4 and return output path,
     might damage quality as it does not use 'copy' filter to ensure compatability"""
     tempOut = generateWorkbenchPath(output)
-    runCommand(f"ffmpeg -i \"{input}\" -vn \"{tempOut}\"")
+    runCommand(f"ffmpeg -loglevel error -i \"{input}\" -vn \"{tempOut}\"")
     shutil.move(tempOut, output)
     return output
 
@@ -59,28 +63,30 @@ def ripAudioFromFolder(inputFolder, outputFolder):
         print(f"Handling file: {inputFile}")
         Mp4ToMp3(inputFile, outputFolder / f"{inputFile.stem}.mp3")
 
+def getLength(path):
+    p = subprocess.run(f"ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 \"{str(path)}\"", capture_output=True, shell=True, universal_newlines=True)
+    return float(p.stdout.replace("\n", ""))
 
 def cutAudio(input, outputFolder, lengths):
     input = Path(input)
     outputFolder = Path(outputFolder)
-    outputFolder = outputFolder.parent / \
-        f"{outputFolder.stem}-lengths-{lengths}"
     # totalLength = AudioSegment.from_file(input).duration_seconds
-    totalLength = 5039
+    totalLength = getLength(input)
+    numLengths = math.ceil(totalLength/lengths)
     print(f"Total length is: {totalLength}")
     print(f"Will create {totalLength/lengths} clips")
-    traversedLength = 0
-    index = 1
-    spillover = totalLength % lengths
+
+    lengths = [(i*lengths, (i+1)*lengths if (i+1)*lengths < totalLength else totalLength) for i in range(0, numLengths)]
 
     makeSureFolderExists(outputFolder)
     # TODO This generates a corrupted (empty?) audio file at the end fix it! However, it is not needed for local processing so I don't use it anymore
-    while traversedLength < totalLength+spillover:
+    
+    for index,length in enumerate(lengths):
         outputPath = outputFolder / f"{input.stem}-{index}{input.suffix}"
         runCommand(
-            f"ffmpeg -ss {traversedLength} -to {traversedLength+lengths} -i \"{input}\" \"{outputPath}\" -acodec copy")
-        traversedLength = traversedLength+lengths
-        index = index+1
+            f"ffmpeg -loglevel error -ss {length[0]} -to {length[1]} -i \"{input}\" \"{outputPath}\" -acodec copy")
+
+    return outputFolder
 
 
 def trimLeadingSilence(videoFile, outputFile):
@@ -94,6 +100,21 @@ def trimLeadingSilence(videoFile, outputFile):
     makeSureFolderExists(outputFile)
     tempOut = generateWorkbenchPath(outputFile)
     runCommand(
-        f"ffmpeg -i \"{videoFile}\" -ss \"{silenceEnd}ms\" -vcodec copy -acodec copy \"{tempOut}\"")
+        f"ffmpeg -loglevel error -i \"{videoFile}\" -ss \"{silenceEnd}ms\" -vcodec copy -acodec copy \"{tempOut}\"")
     shutil.move(tempOut, outputFile)
     return outputFile
+
+
+def copyFilesToGoogleColab(inputFolder, outputFolder, filePattern="**/*.mp3", fileFilter=lambda fileList: fileList):
+    inputFolder = Path(inputFolder)
+    outputFolder = Path(outputFolder)
+    logger.info(f"Copying files from {inputFolder} to {outputFolder} for processing in Google Colab")
+
+    inputFiles = fileFilter([Path(file) for file in glob.glob(
+        f"{inputFolder}/{filePattern}", recursive=True)])
+    
+    for inputFile in inputFiles:
+        outputPath = outputFolder / inputFile.relative_to(inputFolder)
+        makeSureFolderExists(outputPath)
+        logger.info(f"Copying {inputFile}->{outputPath}")
+        shutil.copy(inputFile, outputPath)

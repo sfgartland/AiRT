@@ -16,19 +16,17 @@ import time
 import datetime
 
 
-def getAudioSegments(folder):
-    return glob.glob(f"{folder}/*")
-
-
 # TODO This pipeline needs to be updated to work witht the workbench workflow
-def generateTranscriptWithApi(input, lengths=15*60):
+def generateTranscriptWithApi(inputFile, lengths=15*60):
+    inputFile = Path(inputFile)
     client = OpenAI()
 
     logger.info(f"Cutting up '{input}' into {lengths}s chunck to feed to api!")
-    cutAudio("audio_PHILOS133_4_November 7th 2023/tester-12.mp3",
-             "workbench", lengths)
-    logger.info(f"Finnished cutting up the input file!")
-    segments = getAudioSegments("workbench")
+    outputFolderClippings = generateWorkbenchPath(f"cut_audio-{lengths}")
+    cutAudio(inputFile,
+             outputFolderClippings, lengths)
+    logger.info(f"Finished cutting up the input file!")
+    segments = glob.glob(str(Path(outputFolderClippings / "*.mp3").as_posix()))
 
     transcript = ""
     for segment in segments:
@@ -88,17 +86,16 @@ def getTranscriptInOutPaths(inputFolder, outputFolder, modelName, fileFilter=lam
     """Reusable function to get input and output paths for transcriptions"""
     inputFolder = Path(inputFolder)
     outputFolder = Path(outputFolder)
-    logger.info(
-        f"Batch transcribing files in \"{inputFolder}\" and outputting to \"{outputFolder}\"")
+
     inputFiles = fileFilter([Path(file) for file in glob.glob(
-        f"{inputFolder}/**/*.mp3", recursive=True)])
+        f"{str(inputFolder.as_posix())}/**/*.mp3", recursive=True)])
     
     getOutputPath = lambda inputFile: outputFolder / inputFile.parent.relative_to(inputFolder) / f"{inputFile.stem}_{modelName}.txt"
 
     return  [(inputFile, getOutputPath(inputFile)) for inputFile in inputFiles]
 
 
-def batchTranscribeMp3s(inputFolder, outputFolder, model, modelName):
+def batchTranscribeMp3sLocally(inputFolder, outputFolder, model, modelName):
     logger.info(
         f"Batch transcribing files in \"{inputFolder}\" and outputting to \"{outputFolder}\"")
     
@@ -119,18 +116,3 @@ def batchTranscribeMp3s(inputFolder, outputFolder, model, modelName):
 
 def createWhisperModel(modelName="base.en"):
     return whisper.load_model(modelName),modelName
-
-
-def copyFilesToGoogleColab(inputFolder, outputFolder, filePattern="**/*.mp3", fileFilter=lambda fileList: fileList):
-    inputFolder = Path(inputFolder)
-    outputFolder = Path(outputFolder)
-    logger.info(f"Copying files from {inputFolder} to {outputFolder} for processing in Google Colab")
-
-    inputFiles = fileFilter([Path(file) for file in glob.glob(
-        f"{inputFolder}/{filePattern}", recursive=True)])
-    
-    for inputFile in inputFiles:
-        outputPath = outputFolder / inputFile.relative_to(inputFolder)
-        makeSureFolderExists(outputPath)
-        logger.info(f"Copying {inputFile}->{outputPath}")
-        shutil.copy(inputFile, outputPath)
