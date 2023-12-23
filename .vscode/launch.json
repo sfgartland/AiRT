@@ -11,6 +11,14 @@
             "program": "${file}",
             "console": "integratedTerminal",
             "justMyCode": true
+        },
+        {
+            "name": "Python: -m src.AI_researcher",
+            "type": "python",
+            "request": "launch",
+            "module": "src.AI_researcher",
+            "console": "integratedTerminal",
+            "justMyCode": true
         }
     ]
 }

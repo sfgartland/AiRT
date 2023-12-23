@@ -17,7 +17,7 @@ class Price:
         return f"${round(price, 2)}"
 
     def __str__(self):
-        return f"Total price: {self.readablePrice(self.totalPrice)} (input price: {self.readablePrice(self.inputPrice)}, output price: {self.readablePrice(self.outputPrice)})"
+        return f"{self.readablePrice(self.totalPrice)} (input price: {self.readablePrice(self.inputPrice)}, output price: {self.readablePrice(self.outputPrice)})"
 
 
 def textToToken(text):
@@ -33,17 +33,17 @@ class gpt_4_1106_preview:
     output_price = 0.06
     output_format = InputFormats.KTOKEN
 
-    def calcPrice(self, inputText, outputText, inputLength=None, outputLength=None):
+    def calcPrice(self, input, output):
         """Calculates the price of a run"""
-        if not inputLength:
-            inputPrice = textToToken(inputText)*self.input_price/1000
-        else:
-            inputPrice = lenToToken(inputLength)*self.input_price/1000
+        if isinstance(input, str):
+            inputPrice = textToToken(input)*self.input_price/1000
+        elif isinstance(input, numbers.Number):
+            inputPrice = lenToToken(input)*self.input_price/1000
 
-        if not outputLength:
-            outputPrice = textToToken(outputText)*self.output_price/1000
-        else:
-            outputPrice = lenToToken(outputLength)*self.output_price/1000
+        if isinstance(output, str):
+            outputPrice = textToToken(output)*self.output_price/1000
+        elif isinstance(output, numbers.Number):
+            outputPrice = lenToToken(output)*self.output_price/1000
 
         return Price(inputPrice, outputPrice)
 

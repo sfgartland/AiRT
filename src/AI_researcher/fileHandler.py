@@ -20,6 +20,7 @@ def runCommand(command, output_stdout=False):
         logger.info(p.stdout)
     else:
         logger.debug(p.stdout)
+    
     logger.error(p.stderr)
 
 def generateWorkbenchPath(inputFile, workbenchPath="workbench"):
