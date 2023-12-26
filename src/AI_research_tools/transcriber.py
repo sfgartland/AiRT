@@ -6,7 +6,7 @@ import os
 import glob
 from pathlib import Path
 
-from .fileHandler import cutAudio, Mp4ToMp3, trimLeadingSilence, generateWorkbenchPath, makeSureFolderExists
+from .fileHandler import cutAudio, ToMp3, trimLeadingSilence, generateWorkbenchPath, makeSureFolderExists
 
 from rich import print
 
@@ -76,7 +76,7 @@ def batchProcessMediaFiles(inputFolder, outputFolder, fileFilter=lambda x: x):
                     trimLeadingSilence(inputFile, outputPathVideo)
                 if not outputPathAudio.is_file():
                     logger.info(f"Converting trimmed video to mp3")
-                    Mp4ToMp3(outputPathVideo, outputPathAudio)
+                    ToMp3(outputPathVideo, outputPathAudio)
             except Exception as err:
                 logger.info(f"Encountered error while processing '{inputFile}'")
                 logger.error(err)

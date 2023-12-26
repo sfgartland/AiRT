@@ -13,12 +13,21 @@ class Price:
         self.outputPrice = outputPrice
 
     @staticmethod
-    def readablePrice(price):
+    def readablePrice(price) -> str:
         return f"${round(price, 2)}"
+    
+    @staticmethod
+    def sumPrices(prices):
+        total = Price(0,0)
+        for price in prices:
+            total += price
+        return total
 
     def __str__(self):
         return f"{self.readablePrice(self.totalPrice)} (input price: {self.readablePrice(self.inputPrice)}, output price: {self.readablePrice(self.outputPrice)})"
 
+    def __add__(self, other):
+        return Price(self.inputPrice+other.inputPrice, self.outputPrice+other.outputPrice)
 
 def textToToken(text):
     return lenToToken(len(text))
@@ -27,11 +36,16 @@ def textToToken(text):
 def lenToToken(len):
     return len/4
 
-
 class gpt_4_1106_preview:
     input_price = 0.01
     output_price = 0.06
     output_format = InputFormats.KTOKEN
+
+    def calcPriceFromResponse(self, response):
+        inputPrice = response.usage.prompt_tokens*self.input_price/1000
+        outputPrice = response.usage.completion_tokens*self.output_price/1000
+
+        return Price(inputPrice, outputPrice)
 
     def calcPrice(self, input, output):
         """Calculates the price of a run"""

@@ -13,10 +13,10 @@
             "justMyCode": true
         },
         {
-            "name": "Python: -m src.AI_researcher",
+            "name": "Python: AI_research_tools module",
             "type": "python",
             "request": "launch",
-            "module": "src.AI_researcher",
+            "module": "src.AI_research_tools",
             "console": "integratedTerminal",
             "justMyCode": true
         }

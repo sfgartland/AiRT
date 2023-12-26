@@ -16,12 +16,14 @@ from loguru import logger
 
 def runCommand(command, output_stdout=False):
     p = subprocess.run(command, capture_output=True, shell=True, universal_newlines=True)
-    if output_stdout:
-        logger.info(p.stdout)
-    else:
-        logger.debug(p.stdout)
-    
-    logger.error(p.stderr)
+
+    if p.stdout != "":
+        if output_stdout:
+            logger.info(p.stdout)
+        else:
+            logger.debug(p.stdout)
+    if p.stderr != "":
+        logger.error(p.stderr)
 
 def generateWorkbenchPath(inputFile, workbenchPath="workbench"):
     makeSureFolderExists(workbenchPath)
@@ -44,14 +46,26 @@ def m3u8UrlToMp4(url, output):
     runCommand(f'ffmpeg -loglevel error -i "{url}" -codec copy {output}')
 
 
-def Mp4ToMp3(input, output):
-    """Uses ffmpeg to make mp3 from mp4 and return output path,
-    might damage quality as it does not use 'copy' filter to ensure compatability"""
+def ToMp3(input, output=None):
+    input = Path(input)
+    if output:
+        output = Path(output)
+    else:
+        output = input.parent / f"{input.stem}.mp3"
+
     tempOut = generateWorkbenchPath(output)
-    runCommand(f"ffmpeg -loglevel error -i \"{input}\" -vn \"{tempOut}\"")
+
+    filetype = input.suffix.replace(".", "")
+
+    if filetype == "mp4":
+        runCommand(f"ffmpeg -loglevel error -i \"{input}\" -vn \"{tempOut}\"")
+    elif filetype == "m4a":
+        runCommand(f"ffmpeg -loglevel error -i \"{input}\" -c:v copy -c:a libmp3lame -q:a 4 \"{tempOut}\"")
+    else:
+        runCommand(f"ffmpeg -loglevel error -i \"{input}\" \"{tempOut}\"") ## E.g. .ogg
+
     shutil.move(tempOut, output)
     return output
-
 
 def ripAudioFromFolder(inputFolder, outputFolder):
     inputFolder = Path(inputFolder)
@@ -62,13 +76,14 @@ def ripAudioFromFolder(inputFolder, outputFolder):
     print(f"Handling input files: {inputFiles}")
     for inputFile in inputFiles:
         print(f"Handling file: {inputFile}")
-        Mp4ToMp3(inputFile, outputFolder / f"{inputFile.stem}.mp3")
+        ToMp3(inputFile, outputFolder / f"{inputFile.stem}.mp3")
 
 def getLength(path):
     p = subprocess.run(f"ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 \"{str(path)}\"", capture_output=True, shell=True, universal_newlines=True)
     return float(p.stdout.replace("\n", ""))
 
 def cutAudio(input, outputFolder, lengths):
+    #TODO Add option for setting approx file size instead, would be better for use with the API
     input = Path(input)
     outputFolder = Path(outputFolder)
     # totalLength = AudioSegment.from_file(input).duration_seconds
@@ -94,8 +109,9 @@ def trimLeadingSilence(videoFile, outputFile):
     """Function that trims the leading silence from the videofile, 
     it requires a separate ripped mp3 file to detect the silence"""
 
+    #TODO make it check if it is video or audio so that it can process both
     # Uses pydub.AudioSegment to find the time of the silence
-    initialAudio = Mp4ToMp3(videoFile, generateWorkbenchPath("initialaudio.mp3"))
+    initialAudio = ToMp3(videoFile, generateWorkbenchPath("initialaudio.mp3"))
     audio = AudioSegment.from_mp3(initialAudio)
     silenceEnd = detect_leading_silence(audio)
     makeSureFolderExists(outputFile)

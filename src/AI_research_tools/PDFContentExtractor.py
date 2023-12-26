@@ -6,6 +6,7 @@ from marker.models import load_all_models
 from marker.settings import settings
 import json
 
+
 from loguru import logger
 
 import os

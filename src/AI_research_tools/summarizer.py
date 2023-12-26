@@ -14,10 +14,8 @@ import os
 import glob
 from pathlib import Path
 
-import numbers
 
 from .fileHandler import makeSureFolderExists
-from .price import gpt_4_1106_preview
 
 
 class Section:
@@ -35,7 +33,7 @@ def jsonToMd(json, orderedHeadings):
         if (isinstance(content, list)):
 
             content = "\n".join([f"{i+1}. {x}" for i, x in enumerate(content)])
-        return f"# {key}\n{content}"
+        return f"# {key}\n{content}"    # TODO Update to actually use Section headings and not key as heading
 
     return "\n\n".join([proc_section(section.key) for section in orderedHeadings])
 
@@ -59,8 +57,7 @@ def summarizeLectureTranscript(transcriptPath):
         ]
     )
 
-    return response.choices[0].message.content
-
+    return response
 
 
 def saveResponseToMd(response, outputPath):
@@ -73,15 +70,32 @@ def saveResponseToMd(response, outputPath):
     makeSureFolderExists(outputPath)
     open(outputPath, "w", encoding="utf-8").write(md)
 
+def generatePicklePath(mdFile):
+    return mdFile.parent / f"gptresponse_{mdFile.stem}.pkl"
 
-def getSummaryInOutPaths(inputFolder, outputFolder, pattern="**/*.txt", fileFilter=lambda x: x):
+def saveObjectToPkl(response, outputPath):
+    outputPath = Path(outputPath)
+    makeSureFolderExists(outputPath)
+    if outputPath.is_file():
+        os.remove(outputPath)
+    pickle.dump(response, open(outputPath, "wb"))
+
+# TODO Make one main function that implements this logic, currently atleast transcriber.py also has its own function like this
+def getSummaryInOutPaths(inputPath, outputFolder, pattern="**/*.txt", prefix="", filetype="md"):
     """Reusable function to get input and output paths for summaries"""
-    inputFolder = Path(inputFolder)
+    inputPath = Path(inputPath)
     outputFolder = Path(outputFolder)
+    if inputPath.suffix == "":
+        inputFolder = inputPath
+        inputFiles = [Path(file) for file in glob.glob(
+            f"{inputPath}/{pattern}", recursive=True)] # TODO Filter so no dups are made
+    else:
+        inputFolder = inputPath.parent
+        inputFiles = [inputPath]
 
-    inputFiles = [Path(file) for file in glob.glob(
-        f"{inputFolder}/{pattern}", recursive=True)] # TODO Filter so no dups are made
+    if outputFolder.suffix != "":
+        raise Exception("'outputFolder' has to be a folder, not file. You cannot choose the output path yourself.")
+    getOutputPath = lambda inputFile: outputFolder / inputFile.parent.relative_to(inputFolder) / f"{prefix}{inputFile.stem}.{filetype}"
     
-    getOutputPath = lambda inputFile: outputFolder / inputFile.parent.relative_to(inputFolder) / f"{inputFile.stem}.md"
 
     return  [(inputFile, getOutputPath(inputFile)) for inputFile in inputFiles]

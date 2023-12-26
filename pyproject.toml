@@ -13,9 +13,7 @@ authors = [
 ]
 readme = "README.md"
 dynamic = ["version"]
-dependencies = ["pydub", "openai", "rich", "loguru", "openai-whisper", "pytube", "marker[magic-bin] @ git+https://github.com/VikParuchuri/marker.git"]
+dependencies = ["pydub", "openai", "rich", "loguru", "openai-whisper", "pytube", "marker-pdf[magic-bin] @ git+https://github.com/VikParuchuri/marker"]
 
 [project.optional-dependencies]
 magic-bin = ["python-magic-bin"]
-
-# For marker package to work you need to follow instructions here https://github.com/pidydx/libmagicwin64
