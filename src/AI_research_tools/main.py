@@ -2,7 +2,7 @@ import datetime
 import time
 import os
 import typer
-from typing import List
+from typing import Callable, List
 
 from .summarizer import generatePicklePath, getSummaryInOutPaths, saveResponseToMd, saveObjectToPkl, summarizeLectureTranscript
 
@@ -90,7 +90,8 @@ def filter_manyVersionsInFolder(fileList):
 
 # TODO add fileFilter choice in typer function
 @app.command()
-def transcribeWithAPI(inputpath: List[Path], outputfolder:Path=None, fileFilter=lambda x: x):
+def transcribeWithAPI(inputpath: List[Path], outputfolder:Path=None):
+    fileFilter = lambda x: x # TODO Make accessible to CLI
     filePairs = getTranscriptInOutPaths(
         inputpath, outputfolder, "api", fileFilter)
         # Get only the ones that aren't processed
@@ -137,18 +138,22 @@ def summarizeTranscripts(inputpath: List[Path], outputfolder: Path=None):
     ignoreFilePairs = [filePair for filePair in filePairs if filePair[1].is_file()]
     filePairs = [filePair for filePair in filePairs if not filePair in ignoreFilePairs]
 
-    with Live(genPriceTable([], len(filePairs)), refresh_per_second=4) as live:
-        prices = []
-        for inputFile, outputFile in filePairs:
-            with open(inputFile, "r") as f:
-                cost = gpt_4_1106_preview().calcPrice(len(f.read()), 3600)
-                prices.append((inputFile, cost))
-            live.update(genPriceTable(prices, len(filePairs)))
-
-
+    priceEntries = [[pair, None] for pair in filePairs]
+    ignoredEntries = [[pair, None] for pair in ignoreFilePairs]
+    priceTable = lambda: genPriceTable(priceEntries, ignoredEntries=ignoredEntries)
+    with Live(priceTable(), refresh_per_second=4) as live:
+        for index,priceEntry in enumerate(priceEntries):
+            inputpath = priceEntry[0][0]
+            with open(inputpath, "r", encoding="utf-8") as f:
+                length = len(f.read())
+                costEstimate = gpt_4_1106_preview().calcPrice(length, 3600)
+            priceEntries[index][1] = costEstimate
+            live.update(priceTable())
 
     if not Confirm.ask(f"Accept the cost and proceed?"):
         return
+    
+
 
     with Progress() as progress:
         summarize_task = progress.add_task(
@@ -173,6 +178,7 @@ def structureTranscripts(inputpath: List[Path], outputfolder: Path=None):
     ignoreFilePairs = [filePair for filePair in filePairs if filePair[1].is_file()]
     filePairs = [filePair for filePair in filePairs if not filePair in ignoreFilePairs]
 
+    # TODO Move all of these tabel Live view functions into a common function for all CLI commands
     priceEntries = [[pair, None] for pair in filePairs]
     ignoredEntries = [[pair, None] for pair in ignoreFilePairs]
     priceTable = lambda: genPriceTable(priceEntries, ignoredEntries=ignoredEntries)
@@ -242,6 +248,4 @@ def development():
     #         ToMp3(file)
     #         progress.update(conversion_task, advance=1)
 
-
-app()
 

@@ -33,5 +33,5 @@ marker-pdf = {git = "https://github.com/VikParuchuri/marker"}
 python-magic-bin  = "*" # Needed for marker-pdf to work properly
 
 [tool.poetry.scripts]
-AI_research_tools = "AI_research_tools.__main__:app"
+AI_research_tools = "AI_research_tools.main:app"
 
