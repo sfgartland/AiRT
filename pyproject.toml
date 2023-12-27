@@ -1,22 +1,27 @@
 
 
 [build-system]
-requires = [
-  "setuptools >= 40.9.0",
-]
+requires = ["setuptools >= 40.9.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "AI_researcher"
-authors = [
-    {name = "Severin Gartland", email = "sfgartland@hotmail.com"},
-]
+authors = [{ name = "Severin Gartland", email = "sfgartland@hotmail.com" }]
 readme = "README.md"
 dynamic = ["version"]
-dependencies = ["pydub", "openai", "rich", "typer[all]", "loguru", "openai-whisper", "pytube", "marker-pdf[magic-bin] @ git+https://github.com/VikParuchuri/marker"]
+dependencies = [
+  "pydub",
+  "openai",
+  "rich",
+  "typer[all]",
+  "loguru",
+  "openai-whisper",
+  "pytube",
+  "marker-pdf[magic-bin] @ git+https://github.com/VikParuchuri/marker",
+  "python-magic-bin", # Needed for marker-pdf to work properly
+]
 
 [project.scripts]
 AI_research_tools = "AI_research_tools.__main__:app"
 
 [project.optional-dependencies]
-magic-bin = ["python-magic-bin"]
