@@ -4,6 +4,7 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
+
         {
             "name": "Python: Current File",
             "type": "python",
@@ -19,6 +20,16 @@
             "module": "src.AI_research_tools",
             "console": "integratedTerminal",
             "justMyCode": true
-        }
+        },
+        ,
+        {
+            "name": "Python: with arguments",
+            "type": "python",
+            "request": "launch",
+            "module": "src.AI_research_tools",
+            "args": ["structuretranscripts", "\"./output/PHILOS25A/\""],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
     ]
 }

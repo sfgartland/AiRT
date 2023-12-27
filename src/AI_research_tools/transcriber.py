@@ -6,7 +6,7 @@ import os
 import glob
 from pathlib import Path
 
-from .fileHandler import cutAudio, ToMp3, trimLeadingSilence, generateWorkbenchPath, makeSureFolderExists
+from .fileHandler import base_getInOutPaths, cutAudio, ToMp3, trimLeadingSilence, generateWorkbenchPath, makeSureFolderExists
 
 from rich import print
 
@@ -82,17 +82,10 @@ def batchProcessMediaFiles(inputFolder, outputFolder, fileFilter=lambda x: x):
                 logger.error(err)
 
 
-def getTranscriptInOutPaths(inputFolder, outputFolder, modelName, fileFilter=lambda x: x):
+def getTranscriptInOutPaths(inputPath, outputFolder, modelName, fileFilter=lambda x: x):
     """Reusable function to get input and output paths for transcriptions"""
-    inputFolder = Path(inputFolder)
-    outputFolder = Path(outputFolder)
+    return fileFilter(base_getInOutPaths(inputPath, outputFolder, "**/*.mp3", "transcript_", f"_{modelName}", "txt"))
 
-    inputFiles = fileFilter([Path(file) for file in glob.glob(
-        f"{str(inputFolder.as_posix())}/**/*.mp3", recursive=True)])
-    
-    getOutputPath = lambda inputFile: outputFolder / inputFile.parent.relative_to(inputFolder) / f"{inputFile.stem}_{modelName}.txt"
-
-    return  [(inputFile, getOutputPath(inputFile)) for inputFile in inputFiles]
 
 
 def batchTranscribeMp3sLocally(inputFolder, outputFolder, model, modelName):

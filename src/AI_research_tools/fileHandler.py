@@ -2,6 +2,7 @@ import math
 import os
 import subprocess
 import shutil
+from typing import List
 from pydub import AudioSegment
 from pydub.silence import detect_leading_silence
 import glob
@@ -135,3 +136,46 @@ def copyFilesToGoogleColab(inputFolder, outputFolder, filePattern="**/*.mp3", fi
         makeSureFolderExists(outputPath)
         logger.info(f"Copying {inputFile}->{outputPath}")
         shutil.copy(inputFile, outputPath)
+
+def getCommonParent(files: list[Path]):
+    commonFolder = files[0].parent
+    for file in files:
+        while not commonFolder in file.parents:
+            commonFolder = commonFolder.parent
+
+    return commonFolder
+
+def base_getInOutPaths(inputPath: str|Path|list[Path], outputFolder: str|Path, pattern:str, prefix:str, postfix:str, filetype:str):
+    """Reusable function to get input and output paths for summaries"""
+    # Casts inputs into Path objects
+    if isinstance(inputPath, str):
+        inputPath = Path(inputPath)
+    if isinstance(outputFolder, str):
+        outputFolder = Path(outputFolder)
+    if len(inputPath) == 1:
+        inputPath = inputPath[0]
+
+    
+    # If it is a path, 
+    if isinstance(inputPath, Path):
+        if inputPath.suffix == "":
+            inputFolder = inputPath
+            inputFiles = [Path(file) for file in glob.glob(
+                f"{inputPath}/{pattern}", recursive=True)]
+        else:
+            inputFolder = inputPath.parent
+            inputFiles = [Path(file) for file in glob.glob(
+                f"{inputPath}", recursive=True)]
+    elif isinstance(inputPath, List):
+        inputFiles = inputPath
+        inputFolder = getCommonParent(inputFiles)
+
+    if not outputFolder:
+        outputFolder = inputFolder
+
+    if outputFolder.suffix != "":
+        raise Exception("'outputFolder' has to be a folder, not file. You cannot choose the output path yourself.")
+    
+    getOutputPath = lambda inputFile: outputFolder / inputFile.parent.relative_to(inputFolder) / f"{prefix}{inputFile.stem}{postfix}.{filetype}"
+
+    return  [(inputFile, getOutputPath(inputFile)) for inputFile in inputFiles]

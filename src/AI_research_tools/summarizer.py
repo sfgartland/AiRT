@@ -15,7 +15,7 @@ import glob
 from pathlib import Path
 
 
-from .fileHandler import makeSureFolderExists
+from .fileHandler import base_getInOutPaths, makeSureFolderExists
 
 
 class Section:
@@ -80,22 +80,5 @@ def saveObjectToPkl(response, outputPath):
         os.remove(outputPath)
     pickle.dump(response, open(outputPath, "wb"))
 
-# TODO Make one main function that implements this logic, currently atleast transcriber.py also has its own function like this
-def getSummaryInOutPaths(inputPath, outputFolder, pattern="**/*.txt", prefix="", filetype="md"):
-    """Reusable function to get input and output paths for summaries"""
-    inputPath = Path(inputPath)
-    outputFolder = Path(outputFolder)
-    if inputPath.suffix == "":
-        inputFolder = inputPath
-        inputFiles = [Path(file) for file in glob.glob(
-            f"{inputPath}/{pattern}", recursive=True)] # TODO Filter so no dups are made
-    else:
-        inputFolder = inputPath.parent
-        inputFiles = [inputPath]
-
-    if outputFolder.suffix != "":
-        raise Exception("'outputFolder' has to be a folder, not file. You cannot choose the output path yourself.")
-    getOutputPath = lambda inputFile: outputFolder / inputFile.parent.relative_to(inputFolder) / f"{prefix}{inputFile.stem}.{filetype}"
-    
-
-    return  [(inputFile, getOutputPath(inputFile)) for inputFile in inputFiles]
+def getSummaryInOutPaths(inputPath, outputFolder, pattern="**/*.txt", prefix="summarized_", filetype="md"):
+    return base_getInOutPaths(inputPath, outputFolder, pattern, prefix, "", filetype)

@@ -1,14 +1,15 @@
 import datetime
 import time
 import os
-# import typer
+import typer
+from typing import List
 
 from .summarizer import generatePicklePath, getSummaryInOutPaths, saveResponseToMd, saveObjectToPkl, summarizeLectureTranscript
 
 # from .PDFContentExtractor import pdf2md
 
 from .price import gpt_4_1106_preview, whisper, Price
-from .fileHandler import ToMp3, getLength, makeSureFolderExists, runCommand
+from .fileHandler import ToMp3, getCommonParent, getLength, makeSureFolderExists, runCommand
 from .fileFetcher import getFromYoutube
 from .transcriber import createWhisperModel, batchTranscribeMp3sLocally, batchProcessMediaFiles, generateTranscriptWithApi, getTranscriptInOutPaths, writeToFile
 from .textStructurer import checkSimilarityToOriginal, sectionListToMarkdown, getStructureFromGPT
@@ -29,6 +30,7 @@ import pickle
 
 logger.add("logs/transcriber-{time}.log")
 
+app = typer.Typer()
 
 def genPriceRow(entry, hideInputPrice, hideOutputPrice):
     inputFile = entry[0][0]
@@ -86,11 +88,14 @@ def filter_manyVersionsInFolder(fileList):
 
     return [file for file in fileList if file.samefile(getFilesInSameFolder(file)[-1])]
 
-
-def batchTranscribeWithAPI(inputFolder, outputFolder, fileFilter=lambda x: x):
+# TODO add fileFilter choice in typer function
+@app.command()
+def transcribeWithAPI(inputpath: List[Path], outputfolder:Path=None, fileFilter=lambda x: x):
     filePairs = getTranscriptInOutPaths(
-        inputFolder, outputFolder, "api", fileFilter)
-    # filePairs = [filePair for filePair in filePairs if not filePair[1].is_file()] # Get only the ones that aren't processed
+        inputpath, outputfolder, "api", fileFilter)
+        # Get only the ones that aren't processed
+    ignoreFilePairs = [filePair for filePair in filePairs if filePair[1].is_file()]
+    filePairs = [filePair for filePair in filePairs if not filePair in ignoreFilePairs]
 
     priceEntries = [[pair, None] for pair in filePairs]
     priceTable = lambda: genPriceTable(priceEntries, hideOutputPrice=True, hideInputPrice=True)
@@ -124,13 +129,13 @@ def batchTranscribeWithAPI(inputFolder, outputFolder, fileFilter=lambda x: x):
                 logger.error(err)
             progress.update(trans_task, advance=1)
 
-
-def batchSummarizeLectureTranscripts(inputFolder, outputFolder, pattern="**/*.txt"):
+@app.command()
+def summarizeTranscripts(inputpath: List[Path], outputfolder: Path=None):
     filePairs = getSummaryInOutPaths(
-        inputFolder, outputFolder, pattern=pattern)
+        inputpath, outputfolder, pattern="**/*.txt", prefix="summarized_")
     # Get only the ones that aren't processed
-    filePairs = [
-        filePair for filePair in filePairs if not filePair[1].is_file()]
+    ignoreFilePairs = [filePair for filePair in filePairs if filePair[1].is_file()]
+    filePairs = [filePair for filePair in filePairs if not filePair in ignoreFilePairs]
 
     with Live(genPriceTable([], len(filePairs)), refresh_per_second=4) as live:
         prices = []
@@ -161,9 +166,9 @@ def batchSummarizeLectureTranscripts(inputFolder, outputFolder, pattern="**/*.tx
 
     print(f"Finished, estimated spending is: {estimatedEndPrice}")
 
-
-def batchStructureTranscripts(inputFolder, outputFolder, pattern="**/*.txt"):
-    filePairs = getSummaryInOutPaths(inputFolder, outputFolder, pattern=pattern, prefix="structured_")
+@app.command()
+def structureTranscripts(inputpath: List[Path], outputfolder: Path=None):
+    filePairs = getSummaryInOutPaths(inputpath, outputfolder, pattern="**/*.txt", prefix="structured_")
     # Get only the ones that aren't processed
     ignoreFilePairs = [filePair for filePair in filePairs if filePair[1].is_file()]
     filePairs = [filePair for filePair in filePairs if not filePair in ignoreFilePairs]
@@ -173,8 +178,8 @@ def batchStructureTranscripts(inputFolder, outputFolder, pattern="**/*.txt"):
     priceTable = lambda: genPriceTable(priceEntries, ignoredEntries=ignoredEntries)
     with Live(priceTable(), refresh_per_second=4) as live:
         for index,priceEntry in enumerate(priceEntries):
-            inputPath = priceEntry[0][0]
-            with open(inputPath, "r", encoding="utf-8") as f:
+            inputpath = priceEntry[0][0]
+            with open(inputpath, "r", encoding="utf-8") as f:
                 length = len(f.read())
                 costEstimate = gpt_4_1106_preview().calcPrice(length, length/6)
             priceEntries[index][1] = costEstimate
@@ -187,8 +192,8 @@ def batchStructureTranscripts(inputFolder, outputFolder, pattern="**/*.txt"):
         structuring_task = progress.add_task(
             "Structuring...", total=len(filePairs))
         estimatedEndPrice = Price(0,0)
-        for inputPath, outputPath in filePairs:
-            sections, responses = getStructureFromGPT(inputPath)
+        for inputpath, outputPath in filePairs:
+            sections, responses = getStructureFromGPT(inputpath)
 
             estimatedEndPrice += Price.sumPrices([gpt_4_1106_preview().calcPriceFromResponse(response) for response in responses])
 
@@ -201,7 +206,11 @@ def batchStructureTranscripts(inputFolder, outputFolder, pattern="**/*.txt"):
 
     print(f"Finished, estimated spending is: {estimatedEndPrice}")
 
-if __name__ == "__main__":
+@app.command()
+def development(files: list[Path]):
+    print(getCommonParent(files))
+
+# if __name__ == "__main__":
     # getFromYoutube("https://www.youtube.com/watch?v=3tvfq8ehHOk&embeds_referring_euri=https%3A%2F%2Fphilosophy.columbia.edu%2F&source_ve_path=OTY3MTQ&feature=emb_imp_woyt", "testout")
     # copyFilesToGoogleColab("output/PHILOS133", "G:/Min disk/google-Collab-testing-folder/PHILOS133", fileFilter=filter)
     # runCommand("nougat test.pdf -o output_directory -m 0.1.0-base", output_stdout=True)
@@ -213,8 +222,8 @@ if __name__ == "__main__":
     # batchTranscribeWithAPI("output/Opptak FIL2505", "output/Opptak FIL2505")
     # batchSummarizeLectureTranscripts("output/Opptak FIL2505", "inputs/Opptak FIL2505", "**/*_api.txt")
 
-    batchStructureTranscripts("testing", "testing")
-    print(checkSimilarityToOriginal("./testing/trans.txt", "./testing/outputtest.md"))
+    # batchStructureTranscripts("output/Opptak FIL2505", "output/Opptak FIL2505")
+    # print(checkSimilarityToOriginal("./testing/trans.txt", "./testing/outputtest.md"))
 
     # TODO move to function, does batch conversion of audio files
     # files = glob.glob("inputs/Opptak FIL2505/*.m4a")
@@ -224,3 +233,7 @@ if __name__ == "__main__":
     #     for file in files:
     #         ToMp3(file)
     #         progress.update(conversion_task, advance=1)
+
+
+app()
+
