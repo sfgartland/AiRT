@@ -27,6 +27,8 @@ Simply run this command `pip install git+https://github.com/sfgartland/AI_resear
 ## Usage
 For now see `AI_research_tools --help` for information.
 
+Basic usage is to place the files you want to process in a directory, then call the desired command on either the specific file or folder that you want to process.
+
 As I'm still in the early stages of setting up the CLI UI there will be a lot of changes. When the CLI structure has been settled in I will update this section with more details.
 
 ## Requirements
