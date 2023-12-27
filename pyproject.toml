@@ -1,27 +1,37 @@
-
+[tool.poetry]
+name = "AI_research_tools"
+readme = "README.md"
+version = "0.0.1dev1"
+description = "Tools for processing academic resources with AI"
+authors = ["Severin Gartland <sfgartland@hotmail.com>"]
 
 [build-system]
-requires = ["setuptools >= 40.9.0"]
-build-backend = "setuptools.build_meta"
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
 
-[project]
-name = "AI_researcher"
-authors = [{ name = "Severin Gartland", email = "sfgartland@hotmail.com" }]
-readme = "README.md"
-dynamic = ["version"]
-dependencies = [
-  "pydub",
-  "openai",
-  "rich",
-  "typer[all]",
-  "loguru",
-  "openai-whisper",
-  "pytube",
-  "marker-pdf[magic-bin] @ git+https://github.com/VikParuchuri/marker",
-  "python-magic-bin", # Needed for marker-pdf to work properly
-]
+[tool.poetry.dependencies]
+python = ">=3.11,<3.13" # TODO Picked a random one, update
+pydub = "*"
+openai = "*"
+rich = "*"
+typer = { version = "*", extras = ["all"]}
+loguru = "*"
+pytube = "*"
+regex = "*"
 
-[project.scripts]
+[tool.poetry.group.localTranscription]
+optional = true
+
+[tool.poetry.group.localTranscription.dependencies]
+openai-whisper = "*"
+
+[tool.poetry.group.pdfProcessing]
+optional = true
+
+[tool.poetry.group.pdfProcessing.dependencies]
+marker-pdf = {git = "https://github.com/VikParuchuri/marker"}
+python-magic-bin  = "*" # Needed for marker-pdf to work properly
+
+[tool.poetry.scripts]
 AI_research_tools = "AI_research_tools.__main__:app"
 
-[project.optional-dependencies]

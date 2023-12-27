@@ -1,6 +1,10 @@
 import shutil
 from openai import OpenAI
-import whisper
+
+try:
+    import whisper
+except ImportError:
+    localTranscriptionDisabled = True
 
 import os
 import glob

@@ -6,7 +6,7 @@ from typing import List
 
 from .summarizer import generatePicklePath, getSummaryInOutPaths, saveResponseToMd, saveObjectToPkl, summarizeLectureTranscript
 
-# from .PDFContentExtractor import pdf2md
+from .PDFContentExtractor import pdf2md
 
 from .price import gpt_4_1106_preview, whisper, Price
 from .fileHandler import ToMp3, getCommonParent, getLength, makeSureFolderExists, runCommand
@@ -215,8 +215,8 @@ def structureTranscripts(inputpath: List[Path], outputfolder: Path=None):
 
 
 @app.command()
-def development(files: list[Path]):
-    print(getCommonParent(files))
+def development():
+    print("Dev")
 
 # if __name__ == "__main__":
     # getFromYoutube("https://www.youtube.com/watch?v=3tvfq8ehHOk&embeds_referring_euri=https%3A%2F%2Fphilosophy.columbia.edu%2F&source_ve_path=OTY3MTQ&feature=emb_imp_woyt", "testout")

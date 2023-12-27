@@ -1,9 +1,13 @@
 #TODO Add a command to run nougat here
 import datetime
 
-from marker.convert import convert_single_pdf
-from marker.models import load_all_models
-from marker.settings import settings
+try:
+    from marker.convert import convert_single_pdf
+    from marker.models import load_all_models
+    from marker.settings import settings
+except ImportError:
+    pdfProcessingDisabled = True
+    
 import json
 
 

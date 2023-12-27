@@ -22,7 +22,7 @@ As a undergraduate student I deal with a lot of materials in the form of lecture
   - E.g. allow for processing files saved in folders with multiple versions of the lecture. It is useful in cases where the lecture is ripped from source with screencap and lecture hall recording where they are separate video files.
 
 ## Installation
-Simply run this command `pip install git+https://github.com/sfgartland/batch-transcriber` 
+Simply run this command `pip install git+https://github.com/sfgartland/AI_research_tools` 
 
 ## Usage
 For now see `AI_research_tools --help` for information.
