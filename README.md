@@ -8,7 +8,7 @@ The example data is a lecture series on Kant's *Critique of Pure Reason* by Dan 
 
 ## Features
 - Transcribe lectures
-  - using the OpenAI whisper models either locally or using their model
+  - using the OpenAI whisper models either locally or using their API
 - Generate summaries of text sources
   - using OpenAI's GPT-4
 - Preprocessing video and audio files for transcription
