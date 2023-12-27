@@ -1,5 +1,5 @@
 # AI_research_tools
-As a undergraduate student I deal with a lot of materials in the form of lectures and academic reading. This project was started as an effort to explore the possibilities of using AI models to make reviewing such material more efficient.
+As a undergraduate student in the humanities I deal with a lot of materials in the form of lectures and academic reading. This project was started as an effort to explore the possibilities of using AI models to make reviewing such material more efficient.
 
 ## Features
 - Transcribe lectures
