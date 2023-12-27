@@ -1,4 +1,5 @@
 from difflib import SequenceMatcher
+from typing import Callable
 from openai import OpenAI
 import regex
 
@@ -38,7 +39,7 @@ def structureSection(transcriptSection, structure):
     return output
 
 
-def getStructureFromGPT(transcriptPath):
+def getStructureFromGPT(transcriptPath, progressCallback:Callable[[int,int], None]=None):
     transcript = open(transcriptPath, "r", encoding="utf-8").read()
     # Split transcript into chunks of 6000 characters for processing
     chunks, chunk_size = len(transcript), 6000
@@ -46,6 +47,8 @@ def getStructureFromGPT(transcriptPath):
     
     structuredSections = []
     responses = []
+    if progressCallback:
+        progressCallback(0, len(transcriptChunks))
     for index,transChunk in enumerate(transcriptChunks):
         # If there are already processed section, remove the last and include it in this one
         prevChunk = transcriptChunks[index-1]
@@ -65,6 +68,8 @@ def getStructureFromGPT(transcriptPath):
             structuredSection[-1][1] = transChunk[finalSpilloverIndex:]
 
         [structuredSections.append(x) for x in structuredSection] # Adds all the sections to the main output
+        if progressCallback:
+            progressCallback(index+1, len(transcriptChunks))
 
     return structuredSections, responses
 

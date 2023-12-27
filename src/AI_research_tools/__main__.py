@@ -191,9 +191,15 @@ def structureTranscripts(inputpath: List[Path], outputfolder: Path=None):
     with Progress() as progress:
         structuring_task = progress.add_task(
             "Structuring...", total=len(filePairs))
+        def progressCallback(x,y):
+            if x == 0:
+                progress.start_task(currentTask)
+            progress.update(currentTask, completed=x, total=y)
+        
         estimatedEndPrice = Price(0,0)
         for inputpath, outputPath in filePairs:
-            sections, responses = getStructureFromGPT(inputpath)
+            currentTask = progress.add_task("Current...", start=False)
+            sections, responses = getStructureFromGPT(inputpath, progressCallback=progressCallback)
 
             estimatedEndPrice += Price.sumPrices([gpt_4_1106_preview().calcPriceFromResponse(response) for response in responses])
 
@@ -205,6 +211,8 @@ def structureTranscripts(inputpath: List[Path], outputfolder: Path=None):
             progress.update(structuring_task, advance=1)
 
     print(f"Finished, estimated spending is: {estimatedEndPrice}")
+
+
 
 @app.command()
 def development(files: list[Path]):
