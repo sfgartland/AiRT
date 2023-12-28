@@ -8,17 +8,17 @@ class InputFormats:
 
 class Price:
     def __init__(self, inputPrice, outputPrice):
-        self.totalPrice = inputPrice+outputPrice
+        self.totalPrice = inputPrice + outputPrice
         self.inputPrice = inputPrice
         self.outputPrice = outputPrice
 
     @staticmethod
     def readablePrice(price) -> str:
         return f"${round(price, 2)}"
-    
+
     @staticmethod
     def sumPrices(prices):
-        total = Price(0,0)
+        total = Price(0, 0)
         for price in prices:
             total += price
         return total
@@ -27,14 +27,18 @@ class Price:
         return f"{self.readablePrice(self.totalPrice)} (input price: {self.readablePrice(self.inputPrice)}, output price: {self.readablePrice(self.outputPrice)})"
 
     def __add__(self, other):
-        return Price(self.inputPrice+other.inputPrice, self.outputPrice+other.outputPrice)
+        return Price(
+            self.inputPrice + other.inputPrice, self.outputPrice + other.outputPrice
+        )
+
 
 def textToToken(text):
     return lenToToken(len(text))
 
 
 def lenToToken(len):
-    return len/4
+    return len / 4
+
 
 class gpt_4_1106_preview:
     input_price = 0.01
@@ -42,24 +46,25 @@ class gpt_4_1106_preview:
     output_format = InputFormats.KTOKEN
 
     def calcPriceFromResponse(self, response):
-        inputPrice = response.usage.prompt_tokens*self.input_price/1000
-        outputPrice = response.usage.completion_tokens*self.output_price/1000
+        inputPrice = response.usage.prompt_tokens * self.input_price / 1000
+        outputPrice = response.usage.completion_tokens * self.output_price / 1000
 
         return Price(inputPrice, outputPrice)
 
     def calcPrice(self, input, output):
         """Calculates the price of a run"""
         if isinstance(input, str):
-            inputPrice = textToToken(input)*self.input_price/1000
+            inputPrice = textToToken(input) * self.input_price / 1000
         elif isinstance(input, numbers.Number):
-            inputPrice = lenToToken(input)*self.input_price/1000
+            inputPrice = lenToToken(input) * self.input_price / 1000
 
         if isinstance(output, str):
-            outputPrice = textToToken(output)*self.output_price/1000
+            outputPrice = textToToken(output) * self.output_price / 1000
         elif isinstance(output, numbers.Number):
-            outputPrice = lenToToken(output)*self.output_price/1000
+            outputPrice = lenToToken(output) * self.output_price / 1000
 
         return Price(inputPrice, outputPrice)
+
 
 class whisper:
     input_price = 0.006
@@ -69,4 +74,4 @@ class whisper:
         if not isinstance(input, numbers.Number):
             pass
 
-        return Price(input*self.input_price, 0)
+        return Price(input * self.input_price, 0)

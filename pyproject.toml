@@ -32,6 +32,9 @@ optional = true
 marker-pdf = {git = "https://github.com/VikParuchuri/marker"}
 python-magic-bin  = "*" # Needed for marker-pdf to work properly
 
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.1.9"
+
 [tool.poetry.scripts]
 AI_research_tools = "AI_research_tools.main:app"
-
