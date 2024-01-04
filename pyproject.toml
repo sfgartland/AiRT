@@ -10,7 +10,7 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.dependencies]
-python = ">=3.11,<3.13" # TODO Picked a random one, update
+python = "~3.11" # TODO Picked a random one, update
 pydub = "*"
 openai = "*"
 rich = "*"
@@ -19,16 +19,20 @@ loguru = "*"
 pytube = "*"
 regex = "*"
 
-[tool.poetry.group.localTranscription]
+[tool.poetry.extras]
+pdfprocessing = ["pdfprocessing"]
+localtranscription = ["localtranscription"]
+
+[tool.poetry.group.localtranscription]
 optional = true
 
-[tool.poetry.group.localTranscription.dependencies]
+[tool.poetry.group.localtranscription.dependencies]
 openai-whisper = "*"
 
-[tool.poetry.group.pdfProcessing]
+[tool.poetry.group.pdfprocessing]
 optional = true
 
-[tool.poetry.group.pdfProcessing.dependencies]
+[tool.poetry.group.pdfprocessing.dependencies]
 marker-pdf = {git = "https://github.com/VikParuchuri/marker"}
 python-magic-bin  = "*" # Needed for marker-pdf to work properly
 

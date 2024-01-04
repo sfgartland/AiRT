@@ -1,11 +1,12 @@
 # TODO Add a command to run nougat here
 import datetime
 
-try:
-    from marker.convert import convert_single_pdf
-    from marker.models import load_all_models
-except ImportError:
-    pdfProcessingDisabled = True
+# try:
+from marker.convert import convert_single_pdf
+from marker.models import load_all_models
+# except ImportError:
+    # pdfProcessingDisabled = True
+    # print("Failed to load pdf processing libraries")
 
 import json
 

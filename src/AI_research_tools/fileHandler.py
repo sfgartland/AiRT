@@ -193,10 +193,11 @@ def base_getInOutPaths(
     # Casts inputs into Path objects
     if isinstance(inputPath, str):
         inputPath = Path(inputPath)
+    if len(inputPath) == 1:
+        inputPath = Path(inputPath[0])
+
     if isinstance(outputFolder, str):
         outputFolder = Path(outputFolder)
-    if len(inputPath) == 1:
-        inputPath = inputPath[0]
 
     # If it is a path,
     if isinstance(inputPath, Path):
@@ -223,10 +224,12 @@ def base_getInOutPaths(
             "'outputFolder' has to be a folder, not file. You cannot choose the output path yourself."
         )
 
-    getOutputPath = (
-        lambda inputFile: outputFolder
-        / inputFile.parent.relative_to(inputFolder)
-        / f"{prefix}{inputFile.stem}{postfix}.{filetype}"
-    )
-
-    return [(inputFile, getOutputPath(inputFile)) for inputFile in inputFiles]
+    return [
+        (
+            inputFile,
+            outputFolder
+            / inputFile.parent.relative_to(inputFolder)
+            / f"{prefix}{inputFile.stem}{postfix}.{filetype}",
+        )
+        for inputFile in inputFiles
+    ]
