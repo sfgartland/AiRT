@@ -13,7 +13,7 @@ from .fileHandler import (
     base_getInOutPaths,
     cutAudio,
     ToMp3,
-    trimLeadingSilence,
+    trimSilence,
     generateWorkbenchPath,
     makeSureFolderExists,
 )
@@ -26,15 +26,18 @@ import datetime
 
 
 # TODO This pipeline needs to be updated to work witht the workbench workflow
-def generateTranscriptWithApi(inputFile, lengths=15 * 60):
+def generateTranscriptWithApi(inputFile, lengths=15*60, progress=None):
     inputFile = Path(inputFile)
     client = OpenAI()
 
-    logger.info(f"Cutting up '{input}' into {lengths}s chunck to feed to api!")
+    logger.info(f"Cutting up '{inputFile}' into {lengths}s chunck to feed to api!")
     outputFolderClippings = generateWorkbenchPath(f"cut_audio-{lengths}")
-    cutAudio(inputFile, outputFolderClippings, lengths)
+    cutAudio(inputFile, outputFolderClippings, lengths, progress=progress)
     logger.info("Finished cutting up the input file!")
+    # outputFolderClippings = Path("workbench/cut_audio-900-temp-2024-Jan-11--12-47-23-299137")
     segments = glob.glob(str(Path(outputFolderClippings / "*.mp3").as_posix()))
+
+    api_task = progress.add_task("Transcribing chunks through api... ", total=len(segments))
 
     transcript = ""
     for segment in segments:
@@ -46,6 +49,7 @@ def generateTranscriptWithApi(inputFile, lengths=15 * 60):
             prompt=transcript,
         )
         transcript = transcript + apiResponse.text
+        progress.update(api_task, advance=1)
     return transcript
 
 
@@ -93,7 +97,7 @@ def batchProcessMediaFiles(inputFolder, outputFolder, fileFilter=lambda x: x):
             try:
                 if not outputPathVideo.is_file():
                     logger.info("Trimming leading silence")
-                    trimLeadingSilence(inputFile, outputPathVideo)
+                    trimSilence(inputFile, outputPathVideo, only_leading=True)
                 if not outputPathAudio.is_file():
                     logger.info("Converting trimmed video to mp3")
                     ToMp3(outputPathVideo, outputPathAudio)

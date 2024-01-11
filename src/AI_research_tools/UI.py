@@ -1,4 +1,5 @@
-from .AI_research_tools.price import Price
+from pathlib import Path
+from .price import Price
 
 
 from rich.table import Table
@@ -33,7 +34,7 @@ def genPriceTable(
 
     progress = Progress()
     task = progress.add_task("Estimating costs...", total=totalLength)
-    progress.update(task, completed=len(entries))
+    progress.update(task, completed=len(entries)) #TODO Change to sometging else than len(entries)
 
     priceTable = Table(show_footer=True)
     # priceTable.add_column(None, len(entries))
@@ -59,3 +60,29 @@ def genPriceTable(
     #         priceTable.add_row(*row)
 
     return priceTable
+
+def genProgressRow(entry):
+    inputUrl = entry[0]
+    row = [inputUrl]
+    if isinstance(entry[1], Path):
+        row.append(str(entry[1]))
+    else:
+        row.append(entry[1])
+    return row # TODO If this is still just returning the same we can remove it since it just reproduces the array
+
+def genProgressTable(entries, completed, ignoredEntries=[]) -> Table:
+    totalLength = len(entries)
+    totalProgress = Progress()
+    total_task = totalProgress.add_task("Total progress...", total=totalLength)
+    totalProgress.update(total_task, completed=completed) #TODO Change from len(entries) to the real thing
+
+
+    progressTable = Table(show_footer=True, show_lines=True)
+    progressTable.add_column("Video Url", totalProgress)
+    progressTable.add_column("Output file")
+
+    for entry in entries:
+        row = genProgressRow(entry)
+        progressTable.add_row(*row)
+
+    return progressTable

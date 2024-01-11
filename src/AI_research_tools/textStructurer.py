@@ -33,7 +33,6 @@ def structureSection(transcriptSection, structure):
         match.groups()
         for match in regex.finditer("(#+[^\[\]]+)?\n\[([^\[\]]+)\]", structure)
     ]
-    print(len(parsEndings))
     output = []
     for heading, parEnding in parsEndings:
         # Gets fuzzy matched sentence from body of transcript
@@ -52,7 +51,7 @@ def structureSection(transcriptSection, structure):
 
 
 def getStructureFromGPT(
-    transcriptPath, progressCallback: Callable[[int, int], None] = None
+    transcriptPath, progress = None
 ):
     transcript = open(transcriptPath, "r", encoding="utf-8").read()
     # Split transcript into chunks of 6000 characters for processing
@@ -63,8 +62,9 @@ def getStructureFromGPT(
 
     structuredSections = []
     responses = []
-    if progressCallback:
-        progressCallback(0, len(transcriptChunks))
+    if progress is not None:
+        struct_task = progress.add_task("Structuring transcript...", complete=len(transcriptChunks))
+
     for index, transChunk in enumerate(transcriptChunks):
         # If there are already processed section, remove the last and include it in this one
         prevChunk = transcriptChunks[index - 1]
@@ -86,8 +86,8 @@ def getStructureFromGPT(
         [
             structuredSections.append(x) for x in structuredSection
         ]  # Adds all the sections to the main output
-        if progressCallback:
-            progressCallback(index + 1, len(transcriptChunks))
+        if progress is not None:
+            progress.update(struct_task, completed=index+1)
 
     return structuredSections, responses
 

@@ -18,6 +18,8 @@ typer = { version = "*", extras = ["all"]}
 loguru = "*"
 pytube = "*"
 regex = "*"
+ffmpeg-python = "*"
+moviepy = "*"
 
 [tool.poetry.extras]
 pdfprocessing = ["pdfprocessing"]
@@ -42,3 +44,4 @@ ruff = "^0.1.9"
 
 [tool.poetry.scripts]
 AI_research_tools = "AI_research_tools.main:app"
+airt = "AI_research_tools.main:app"

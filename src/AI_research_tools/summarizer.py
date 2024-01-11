@@ -70,6 +70,8 @@ def saveResponseToMd(response, outputPath):
     makeSureFolderExists(outputPath)
     open(outputPath, "w", encoding="utf-8").write(md)
 
+    return outputPath
+
 
 def generatePicklePath(mdFile):
     return mdFile.parent / f"gptresponse_{mdFile.stem}.pkl"

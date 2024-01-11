@@ -21,13 +21,39 @@
             "console": "integratedTerminal",
             "justMyCode": true
         },
-        ,
         {
-            "name": "Python: with arguments",
+            "name": "downloadyoutubeplaylist",
             "type": "python",
             "request": "launch",
-            "module": "src.AI_research_tools",
-            "args": ["structuretranscripts", "\"./output/PHILOS25A/\""],
+            "module": "AI_research_tools",
+            "args": ["downloadyoutubeplaylist", "output/Zizek return to hegel 2009", "https://www.youtube.com/watch?v=aR3vfHuOW38&list=PL109D75E2790FE02E"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "concat",
+            "type": "python",
+            "request": "launch",
+            "module": "AI_research_tools",
+            "args": ["concatmp4s", "output/zizek.mp4", "\"output/Zizek return to hegel 2009/Slavoj Žižek The Return To Hegel 2009 116.mp4\"", "\"output/Zizek return to hegel 2009/Slavoj Žižek The Return To Hegel 2009 216.mp4\""],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "transcribeWithAPI",
+            "type": "python",
+            "request": "launch",
+            "module": "AI_research_tools",
+            "args": ["transcribewithapi", "output/PHILOS133/"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "trimsilence",
+            "type": "python",
+            "request": "launch",
+            "module": "AI_research_tools",
+            "args": ["trimsilence", "output/Zizek return to hegel 2009/Slavoj Žižek The Return To Hegel 2009 316.mp4"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
