@@ -14,8 +14,9 @@ parent = "PHILOS133"
 
 def generateHashesAndDump(parent):
     allVideos = glob.glob(f"{parent}/*/*.mp4")
-    hashes = list(map(lambda x: hashlib.md5(
-        open(x, 'rb').read()).hexdigest(), allVideos))
+    hashes = list(
+        map(lambda x: hashlib.md5(open(x, "rb").read()).hexdigest(), allVideos)
+    )
 
     with open("allVideos.txt", "wb") as file:
         pickle.dump(allVideos, file)
@@ -29,7 +30,8 @@ def loadData(filename):
 
 
 def removeDups(parent):
-    def getIndex(path): return int(path.split("\\")[1].split("_")[0])
+    def getIndex(path):
+        return int(path.split("\\")[1].split("_")[0])
 
     allVideos = loadData("allVideos.txt")
     hashes = loadData("hashes.txt")
@@ -44,7 +46,7 @@ def removeDups(parent):
             if matchIndex > currentVideoIndex:
                 try:
                     os.remove(match)
-                except:
+                except Exception:
                     print("Already removed?")
                 # print(f"Would remove {match}")
 

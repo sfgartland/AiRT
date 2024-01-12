@@ -9,6 +9,12 @@ __pycache__/
 .VSCodeCounter/
 
 testing.py
+web.py
+temp.ipynb
+removeDuplicates.py
+
+chromedriver.exe
+geckodriver.exe
 
 
 # Build stuff
@@ -31,3 +37,5 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+
+web-venv/
