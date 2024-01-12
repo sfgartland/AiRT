@@ -41,6 +41,7 @@ python-magic-bin  = "*" # Needed for marker-pdf to work properly
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.1.9"
+ipykernel = "^6.28.0"
 
 [tool.poetry.scripts]
 AI_research_tools = "AI_research_tools.main:app"
