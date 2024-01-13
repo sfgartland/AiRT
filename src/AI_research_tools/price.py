@@ -12,12 +12,12 @@ class Price:
         self.inputPrice = inputPrice
         self.outputPrice = outputPrice
 
-    @staticmethod
-    def readablePrice(price) -> str:
+    @classmethod
+    def readablePrice(self,price) -> str:
         return f"${round(price, 2)}"
 
-    @staticmethod
-    def sumPrices(prices):
+    @classmethod
+    def sumPrices(self,prices):
         total = Price(0, 0)
         for price in prices:
             total += price
@@ -45,12 +45,14 @@ class gpt_4_1106_preview:
     output_price = 0.06
     output_format = InputFormats.KTOKEN
 
+    @classmethod
     def calcPriceFromResponse(self, response):
         inputPrice = response.usage.prompt_tokens * self.input_price / 1000
         outputPrice = response.usage.completion_tokens * self.output_price / 1000
 
         return Price(inputPrice, outputPrice)
 
+    @classmethod
     def calcPrice(self, input, output):
         """Calculates the price of a run"""
         if isinstance(input, str):
@@ -70,6 +72,7 @@ class whisper:
     input_price = 0.006
     output_format = InputFormats.MIN
 
+    @classmethod
     def calcPrice(self, input):
         if not isinstance(input, numbers.Number):
             pass

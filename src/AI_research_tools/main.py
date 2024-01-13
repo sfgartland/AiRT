@@ -122,6 +122,45 @@ class InputTypes(Enum):
     pdf: TypeAlias = Annotated[bool, typer.Option(help="Set for converting markdown file to PDF once done")]
 
 
+def templateCommand(
+    processing_method: callable,
+    filePairs: List[Tuple[Path, Path]],
+    priceEstimateMethod: callable
+):
+    from .UI import genPriceTable, genProgressTable
+    from .price import Price
+
+    # Get only the ones that aren't processed
+    ignoreFilePairs = [filePair for filePair in filePairs if filePair[1].is_file()]
+    filePairs = [filePair for filePair in filePairs if filePair not in ignoreFilePairs]
+
+    # TODO Move all of these tabel Live view functions into a common function for all CLI commands
+    priceEntries = [[pair, None] for pair in filePairs]
+    ignoredEntries = [[pair, None] for pair in ignoreFilePairs]
+    priceTable = lambda: genPriceTable(priceEntries, ignoredEntries=ignoredEntries)
+    with Live(priceTable(), refresh_per_second=4, console=console) as live:
+        for index, priceEntry in enumerate(priceEntries):
+            inputpath = priceEntry[0][0]
+            costEstimate = priceEstimateMethod(inputpath)
+            priceEntries[index][1] = costEstimate
+            live.update(priceTable())
+
+    if not Confirm.ask("Accept the cost and proceed?"):
+        return
+
+    entries = [[str(pair[0]), Progress(console=console)] for pair in filePairs]
+    progressTable = lambda completed: genProgressTable(entries, completed)
+    outputs = []
+    with Live(progressTable(0), refresh_per_second=4, console=console) as live:
+        for index, entry in enumerate(entries):
+            _, progress = entry
+            inputFile, outputFile = filePairs[index]
+            processing_method(progress, inputFile, outputFile)
+            live.update(progressTable(index + 1))
+
+
+
+
 @app.command(rich_help_panel="Youtube")
 def downloadYoutube(outputfolder: InputTypes.outputfolder.value, urls: Annotated[List[str], typer.Argument(help="Urls to be downloaded")]):
     """Download one or more videos from youtube"""
@@ -360,48 +399,6 @@ def summarizeTranscripts(
         mdToPdf([pair[1] for pair in filePairs])
 
 
-def templateCommand(
-    processing_method: callable,
-    filePairs: List[Tuple[Path, Path]],
-    initCallback: callable = None,
-    endCallback: callable = None,
-):
-    from .UI import genPriceTable, genProgressTable
-    from .price import gpt_4_1106_preview, Price
-    from .summarizer import getSummaryInOutPaths, saveObjectToPkl
-    from .fileHandler import makeSureFolderExists
-    from .textStructurer import sectionListToMarkdown, getStructureFromGPT
-
-    # Get only the ones that aren't processed
-    ignoreFilePairs = [filePair for filePair in filePairs if filePair[1].is_file()]
-    filePairs = [filePair for filePair in filePairs if filePair not in ignoreFilePairs]
-
-    # TODO Move all of these tabel Live view functions into a common function for all CLI commands
-    priceEntries = [[pair, None] for pair in filePairs]
-    ignoredEntries = [[pair, None] for pair in ignoreFilePairs]
-    priceTable = lambda: genPriceTable(priceEntries, ignoredEntries=ignoredEntries)
-    with Live(priceTable(), refresh_per_second=4, console=console) as live:
-        for index, priceEntry in enumerate(priceEntries):
-            inputpath = priceEntry[0][0]
-            with open(inputpath, "r", encoding="utf-8") as f:
-                length = len(f.read())
-                costEstimate = gpt_4_1106_preview().calcPrice(length, length / 6)
-            priceEntries[index][1] = costEstimate
-            live.update(priceTable())
-
-    if not Confirm.ask("Accept the cost and proceed?"):
-        return
-
-    entries = [[str(pair[0]), Progress(console=console)] for pair in filePairs]
-    progressTable = lambda completed: genProgressTable(entries, completed)
-    outputs = []
-    with Live(progressTable(0), refresh_per_second=4, console=console) as live:
-        for index, entry in enumerate(entries):
-            _, progress = entry
-            inputFile, outputFile = filePairs[index]
-            processing_method(progress, inputFile, outputFile)
-            live.update(progressTable(index + 1))
-
 
 @app.command(rich_help_panel="AI commands")
 def structureTranscripts(
@@ -434,6 +431,13 @@ def structureTranscripts(
             outputPath.parent / f"text-struct-responses_{outputPath.stem}.pkl",
         )
 
+    def priceEstimateMethod(input: Path):
+        with open(input, "r", encoding="utf-8") as f:
+            length = len(f.read())
+            costEstimate = gpt_4_1106_preview.calcPrice(length, length / 6)
+            return costEstimate
+        
+
     filePairs = getSummaryInOutPaths(
         inputpath, outputfolder, pattern="**/*.txt", prefix="structured_"
     )
@@ -441,7 +445,7 @@ def structureTranscripts(
     estimatedEndPrice = Price(0, 0)
     logger.info("Structuring transcripts")
 
-    templateCommand(processing, filePairs)
+    templateCommand(processing, filePairs, priceEstimateMethod)
 
     print(f"Finished, estimated spending is: {estimatedEndPrice}")
 

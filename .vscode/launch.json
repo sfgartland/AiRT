@@ -49,6 +49,15 @@
             "justMyCode": true
         },
         {
+            "name": "structuretranscripts",
+            "type": "python",
+            "request": "launch",
+            "module": "AI_research_tools",
+            "args": ["structuretranscripts", "output/PHILOS178/"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
             "name": "trimsilence",
             "type": "python",
             "request": "launch",
