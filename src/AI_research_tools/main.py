@@ -1,7 +1,7 @@
 import typer
 from typing_extensions import Annotated
 
-from typing import List, Tuple, TypeAlias
+from typing import List, Tuple
 from enum import Enum
 
 from loguru import logger
@@ -12,6 +12,10 @@ from rich.prompt import Confirm
 from rich.live import Live
 from rich.progress import Progress
 from rich.console import Console
+
+from .UI import template_enum_completer
+
+from .Types import FilePairType, InputTypes, FileFilters
 
 
 console = Console()
@@ -47,88 +51,12 @@ logger.add("logs/transcriber-{time}.log")
 app = typer.Typer()
 
 
-def filter_manyVersionsInFolder(fileList):
-    """Filters through a list of Path objects and returns only the last file in the same folder"""
-
-    def getFilesInSameFolder(current):
-        return [
-            filePair[0] for filePair in fileList if current.parent == filePair[0].parent
-        ]
-
-    return [
-        filePair
-        for filePair in fileList
-        if filePair[0].samefile(getFilesInSameFolder(filePair[0])[-1])
-    ]
-
-
-def filter_noFilter(fileList):
-    return fileList
-
-
-class FileFilters(str, Enum):
-    none = "no_filter"
-    manyVersionsInFolder = "ManyVersionsInFolder"
-
-    @classmethod
-    def getFilter(filter):
-        map = {
-            FileFilters.none: filter_noFilter,
-            FileFilters.manyVersionsInFolder: filter_manyVersionsInFolder,
-        }
-        return map[filter]
-
-def template_enum_completer(enum_class, incomplete: str):
-    completion = []
-    for name in [filter.value for filter in enum_class]:
-        if name.startswith(incomplete):
-            completion.append(name)
-    return completion
-
-
-class InputTypes(Enum):
-    inputpaths: TypeAlias = Annotated[
-        List[Path],
-        typer.Argument(
-            help="File, directory or list of files to process, you can use glob patterns to select multiple files.",
-        ),
-    ]
-    inputpath_single: TypeAlias = Annotated[
-        Path,
-        typer.Argument(
-            help="File to process",
-        ),
-    ]
-
-    outputfolder: TypeAlias = Annotated[
-        Path,
-        typer.Option(
-            help="Folder to output to, will match the structure of the files relative to the lowest common folder of the input files."
-        ),
-    ]
-    outputpath_single: TypeAlias = Annotated[
-        Path,
-        typer.Option(help="Output file"),
-    ]
-
-    filefilter: TypeAlias = Annotated[
-        FileFilters,
-        typer.Option(
-            help="Select a filter to apply to the list of input files",
-            autocompletion=lambda incomplete: template_enum_completer(FileFilters, incomplete),
-        ),
-    ]
-
-    pdf: TypeAlias = Annotated[bool, typer.Option(help="Set for converting markdown file to PDF once done")]
-
-
 def templateCommand(
     processing_method: callable,
     filePairs: List[Tuple[Path, Path]],
     priceEstimateMethod: callable
 ):
     from .UI import genPriceTable, genProgressTable
-    from .price import Price
 
     # Get only the ones that aren't processed
     ignoreFilePairs = [filePair for filePair in filePairs if filePair[1].is_file()]
@@ -244,8 +172,7 @@ def transcribeWithAPI(
     import datetime
     import time
 
-    from .UI import genPriceTable, genProgressTable
-    from .price import whisper
+    from .price import Price, whisper
     from .transcriber import (
         generateTranscriptWithApi,
         getTranscriptInOutPaths,
@@ -264,56 +191,42 @@ def transcribeWithAPI(
         ]
         return filePairs
 
+    def convertToMp3(filePairs: FilePairType):
+        if len(list(filter(lambda x: x[0].suffix != ".mp3", filePairs))) > 0:
+            logger.info(
+                "Detected that some of the input files were not mp3's. Converting them first."
+            )
+            return mp4tomp3([pair[0] for pair in filePairs])
+
+
+
+    def process(progress: Progress, inputPath: Path, outputPath: Path):
+        logger.info(f'Transcribing with API with file "{inputPath}"')
+
+        try:
+            start = time.time()
+            transcript = generateTranscriptWithApi(inputPath, progress=progress)
+            end = time.time()
+            logger.info(
+                f"Transcription time: {datetime.timedelta(seconds=(end-start))}"
+            )
+            writeToFile(transcript, outputPath)
+        except Exception as err:
+            logger.error(
+                f"Encountered error while transcribing and saving '{outputPath}'"
+            )
+            logger.error(err)
+
+    def costEstimateMethod(input: Path) -> Price:
+        return whisper.calcPrice(getLength_old(input) / 60)
+
     filePairs = getPairs(inputpath, outputfolder)
-    if len(list(filter(lambda x: x[0].suffix != ".mp3", filePairs))) > 0:
-        logger.info(
-            "Detected that some of the input files were not mp3's. Converting them first."
-        )
-        outputs = mp4tomp3([pair[0] for pair in filePairs])
-        print(outputs)
-        mp3files = [
-            *outputs,
-            *[pair[0] for pair in filePairs if pair[0].suffix == ".mp3"],
-        ]  # TODO make this code a bit better, now it's quite janky
-        filePairs = getPairs(mp3files, outputfolder)
+    convertToMp3(filePairs)
 
-    priceEntries = [[pair, None] for pair in filePairs]
-    priceTable = lambda: genPriceTable(
-        priceEntries, hideOutputPrice=True, hideInputPrice=True
-    )
-    with Live(priceTable(), refresh_per_second=4, console=console) as live:
-        for index, priceEntry in enumerate(priceEntries):
-            inputFile = priceEntry[0][0]
-            costEstimate = whisper().calcPrice(getLength_old(inputFile) / 60)
-            priceEntries[index][1] = costEstimate
-            live.update(priceTable())
-
-    if not Confirm.ask("Accept the cost and proceed?"):
-        return
-
-    entries = [[str(pair[0]), Progress(console=console)] for pair in filePairs]
-    progressTable = lambda completed: genProgressTable(entries, completed)
-
-    with Live(progressTable(0), refresh_per_second=4, console=console) as live:
-        for index, entry in enumerate(entries):
-            _, progress = entry
-            inputFile, outputFile = filePairs[index]
-            logger.info(f'Transcribing with API with file "{inputFile}"')
-
-            try:
-                start = time.time()
-                transcript = generateTranscriptWithApi(inputFile, progress=progress)
-                end = time.time()
-                logger.info(
-                    f"Transcription time: {datetime.timedelta(seconds=(end-start))}"
-                )
-                writeToFile(transcript, outputFile)
-            except Exception as err:
-                logger.error(
-                    f"Encountered error while transcribing and saving '{outputFile}'"
-                )
-                logger.error(err)
-            live.update(progressTable(index + 1))
+    filePairs = getPairs(inputpath, outputfolder)
+    templateCommand(process, filePairs, costEstimateMethod)
+    
+    logger.info("Finnished transcribing!")
 
 
 @app.command(rich_help_panel="Media file manipulation")

@@ -2,7 +2,7 @@ import asyncio
 import math
 import subprocess
 import shutil
-from typing import List
+from typing import List, Tuple, TypeAlias
 from pydub import AudioSegment
 from pydub.silence import detect_leading_silence, detect_nonsilent
 import glob
@@ -17,6 +17,8 @@ from rich import print
 from loguru import logger
 
 import ffmpeg
+
+from .Types import FilePairType
 
 from .CommandRunners import runCommand, runFfmpegCommandAsync
 
@@ -268,6 +270,7 @@ def getCommonParent(files: list[Path]):
     return commonFolder
 
 
+
 def base_getInOutPaths(
     inputPath: str | Path | list[Path],
     outputFolder: str | Path,
@@ -275,7 +278,7 @@ def base_getInOutPaths(
     prefix: str,
     postfix: str,
     filetype: str,
-):
+) -> FilePairType:
     """Reusable function to get input and output paths for summaries"""
     # Casts inputs into Path objects
     if isinstance(inputPath, str):

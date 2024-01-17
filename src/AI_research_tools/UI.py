@@ -5,6 +5,13 @@ from .price import Price
 from rich.table import Table
 from rich.progress import Progress
 
+def template_enum_completer(enum_class, incomplete: str):
+    """Typer autocomplete function that generates autocompletes from Enum variable"""
+    completion = []
+    for name in [filter.value for filter in enum_class]:
+        if name.startswith(incomplete):
+            completion.append(name)
+    return completion
 
 def genPriceRow(entry, hideInputPrice, hideOutputPrice):
     inputFile = entry[0][0]

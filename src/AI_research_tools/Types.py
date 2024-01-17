@@ -1,0 +1,60 @@
+from enum import Enum
+from pathlib import Path
+from typing import Annotated, TypeAlias, List, Tuple
+
+import typer
+
+from .FileFilters import filter_manyVersionsInFolder, filter_noFilter
+
+from .UI import template_enum_completer
+
+
+class FileFilters(str, Enum):
+    none = "no_filter"
+    manyVersionsInFolder = "ManyVersionsInFolder"
+
+    @classmethod
+    def getFilter(cls, filter):
+        map = {
+            cls.none: filter_noFilter,
+            cls.manyVersionsInFolder: filter_manyVersionsInFolder,
+        }
+        return map[filter]
+
+FilePairType: TypeAlias = List[Tuple[Path, Path]]
+
+
+class InputTypes(Enum):
+    inputpaths: TypeAlias = Annotated[
+        List[Path],
+        typer.Argument(
+            help="File, directory or list of files to process, you can use glob patterns to select multiple files.",
+        ),
+    ]
+    inputpath_single: TypeAlias = Annotated[
+        Path,
+        typer.Argument(
+            help="File to process",
+        ),
+    ]
+
+    outputfolder: TypeAlias = Annotated[
+        Path,
+        typer.Option(
+            help="Folder to output to, will match the structure of the files relative to the lowest common folder of the input files."
+        ),
+    ]
+    outputpath_single: TypeAlias = Annotated[
+        Path,
+        typer.Option(help="Output file"),
+    ]
+
+    filefilter: TypeAlias = Annotated[
+        FileFilters,
+        typer.Option(
+            help="Select a filter to apply to the list of input files",
+            autocompletion=lambda incomplete: template_enum_completer(FileFilters, incomplete),
+        ),
+    ]
+
+    pdf: TypeAlias = Annotated[bool, typer.Option(help="Set for converting markdown file to PDF once done")]
