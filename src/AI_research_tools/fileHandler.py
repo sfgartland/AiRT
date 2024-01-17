@@ -67,15 +67,33 @@ def ToMp3(input, output=None, progress=None):
         totalLength = getLength(input)
         rip_task = progress.add_task("Ripping mp3 file...", total=totalLength)
 
-    progressCallback = lambda x: progress.update(rip_task, completed=x) if progress is not None else None
+    progressCallback = (
+        lambda x: progress.update(rip_task, completed=x)
+        if progress is not None
+        else None
+    )
 
     if filetype == "mp4":
-        asyncio.run(runFfmpegCommandAsync(f'ffmpeg -i "{input}" -vn "{tempOut}"', progressCallback=progressCallback))
+        asyncio.run(
+            runFfmpegCommandAsync(
+                f'ffmpeg -i "{input}" -vn "{tempOut}"',
+                progressCallback=progressCallback,
+            )
+        )
     elif filetype == "m4a":
-        asyncio.run(runFfmpegCommandAsync(f'ffmpeg -i "{input}" -c:v copy -c:a libmp3lame -q:a 4 "{tempOut}"', progressCallback=progressCallback))
+        asyncio.run(
+            runFfmpegCommandAsync(
+                f'ffmpeg -i "{input}" -c:v copy -c:a libmp3lame -q:a 4 "{tempOut}"',
+                progressCallback=progressCallback,
+            )
+        )
     else:
-        asyncio.run(runFfmpegCommandAsync(f'ffmpeg -i "{input}" "{tempOut}"', progressCallback=progressCallback))  ## E.g. .ogg
-    
+        asyncio.run(
+            runFfmpegCommandAsync(
+                f'ffmpeg -i "{input}" "{tempOut}"', progressCallback=progressCallback
+            )
+        )  ## E.g. .ogg
+
     if progress is not None:
         progress.update(rip_task, completed=totalLength)
 
@@ -151,10 +169,17 @@ def cutAudio(input: Path, outputFolder: Path, lengthDuration: int, progress=None
     return outputFolder
 
 
-def trimSilence(videoFile, outputFile, only_leading=False, progress=None, seek_step=10, db_cutoff=-70):
+def trimSilence(
+    videoFile,
+    outputFile,
+    only_leading=False,
+    progress=None,
+    seek_step=10,
+    db_cutoff=-70,
+):
     """Function that trims the silence from the videofile,
     it requires a separate ripped mp3 file to detect the silence"""
-    #TODO Add check for .mp4 in in and out or modify to work with all files
+    # TODO Add check for .mp4 in in and out or modify to work with all files
 
     # TODO make it check if it is video or audio so that it can process both
     # Uses pydub.AudioSegment to find the time of the silence
@@ -168,15 +193,26 @@ def trimSilence(videoFile, outputFile, only_leading=False, progress=None, seek_s
     makeSureFolderExists(outputFile)
     silence_task = progress.add_task("Detecting silence...", total=None)
     if only_leading:
-        non_silences = [(detect_leading_silence(audio, silence_threshold=db_cutoff, chunk_size=seek_step), getLength(videoFile)*1000)]
+        non_silences = [
+            (
+                detect_leading_silence(
+                    audio, silence_threshold=db_cutoff, chunk_size=seek_step
+                ),
+                getLength(videoFile) * 1000,
+            )
+        ]
     else:
-        non_silences = detect_nonsilent(audio, seek_step=seek_step, silence_thresh=db_cutoff)
+        non_silences = detect_nonsilent(
+            audio, seek_step=seek_step, silence_thresh=db_cutoff
+        )
     progress.update(silence_task, completed=1, total=1)
-    
+
     subclips = []
     for non_silence in non_silences:
         subclipPath = generateWorkbenchPath("subclip.mp4")
-        ffmpeg_extract_subclip(videoFile, non_silence[0]/1000, non_silence[1]/1000, subclipPath)
+        ffmpeg_extract_subclip(
+            videoFile, non_silence[0] / 1000, non_silence[1] / 1000, subclipPath
+        )
         subclips.append(subclipPath)
     if len(subclips) > 1:
         tempOut = generateWorkbenchPath("silencetrimmedout.mp4")
@@ -185,7 +221,6 @@ def trimSilence(videoFile, outputFile, only_leading=False, progress=None, seek_s
     else:
         shutil.move(subclips[0], outputFile)
     return outputFile
-
 
 
 # TODO change this callback handling to match the cutAudio function
@@ -232,8 +267,11 @@ def concatMp4s_moviepy(
     clips = [VideoFileClip(str(file)) for file in inputPaths]
     finalclip = concatenate_videoclips(clips, method="compose")
     tempout = generateWorkbenchPath("concat.mp4")
-    finalclip.write_videofile(str(tempout), temp_audiofile=generateWorkbenchPath("tempaudio.mp3"))
+    finalclip.write_videofile(
+        str(tempout), temp_audiofile=generateWorkbenchPath("tempaudio.mp3")
+    )
     shutil.move(tempout, outputPath)
+
 
 def copyFilesToGoogleColab(
     inputFolder,
@@ -270,11 +308,10 @@ def getCommonParent(files: list[Path]):
     return commonFolder
 
 
-
 def base_getInOutPaths(
-    inputPath: str | Path | list[Path],
+    inputPath: str | Path | List[Path],
     outputFolder: str | Path,
-    pattern: str,
+    pattern: str | List[str],
     prefix: str,
     postfix: str,
     filetype: str,
@@ -289,14 +326,18 @@ def base_getInOutPaths(
     if isinstance(outputFolder, str):
         outputFolder = Path(outputFolder)
 
+    if isinstance(pattern, str):
+        pattern = [pattern]
+
     # If it is a path,
     if isinstance(inputPath, Path):
         if inputPath.suffix == "":
             inputFolder = inputPath
             inputFiles = [
-                Path(file)
-                for file in glob.glob(f"{inputPath}/{pattern}", recursive=True)
+                [Path(file) for file in glob.glob(f"{inputPath}/{pat}", recursive=True)]
+                for pat in pattern
             ]
+            inputFiles = sum(inputFiles, []) # Flatten list
         else:
             inputFolder = inputPath.parent
             inputFiles = [

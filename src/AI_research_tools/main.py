@@ -1,7 +1,7 @@
 import typer
 from typing_extensions import Annotated
 
-from typing import List, Tuple
+from typing import Callable, List, Tuple
 from enum import Enum
 
 from loguru import logger
@@ -51,21 +51,16 @@ logger.add("logs/transcriber-{time}.log")
 app = typer.Typer()
 
 
-def templateCommand(
-    processing_method: callable,
-    filePairs: List[Tuple[Path, Path]],
-    priceEstimateMethod: callable
-):
-    from .UI import genPriceTable, genProgressTable
-
-    # Get only the ones that aren't processed
+def ignoreAlreadyProcessed(filePairs: FilePairType):
     ignoreFilePairs = [filePair for filePair in filePairs if filePair[1].is_file()]
-    filePairs = [filePair for filePair in filePairs if filePair not in ignoreFilePairs]
+    return [filePair for filePair in filePairs if filePair not in ignoreFilePairs]
 
-    # TODO Move all of these tabel Live view functions into a common function for all CLI commands
+
+def templatePriceEstimate(filePairs: FilePairType, priceEstimateMethod: callable) -> bool:
+    from .UI import genPriceTable
+
     priceEntries = [[pair, None] for pair in filePairs]
-    ignoredEntries = [[pair, None] for pair in ignoreFilePairs]
-    priceTable = lambda: genPriceTable(priceEntries, ignoredEntries=ignoredEntries)
+    priceTable = lambda: genPriceTable(priceEntries)
     with Live(priceTable(), refresh_per_second=4, console=console) as live:
         for index, priceEntry in enumerate(priceEntries):
             inputpath = priceEntry[0][0]
@@ -73,8 +68,18 @@ def templateCommand(
             priceEntries[index][1] = costEstimate
             live.update(priceTable())
 
-    if not Confirm.ask("Accept the cost and proceed?"):
-        return
+    return Confirm.ask("Accept the cost and proceed?")
+
+
+def templateProcessCommand(
+    processing_method: Callable[[Progress, Path, Path], None], filePairs: FilePairType
+):
+    from .UI import genProgressTable
+
+    # Get only the ones that aren't processed
+    filePairs = ignoreAlreadyProcessed(filePairs)
+
+    # TODO Move all of these tabel Live view functions into a common function for all CLI commands
 
     entries = [[str(pair[0]), Progress(console=console)] for pair in filePairs]
     progressTable = lambda completed: genProgressTable(entries, completed)
@@ -87,10 +92,11 @@ def templateCommand(
             live.update(progressTable(index + 1))
 
 
-
-
 @app.command(rich_help_panel="Youtube")
-def downloadYoutube(outputfolder: InputTypes.outputfolder.value, urls: Annotated[List[str], typer.Argument(help="Urls to be downloaded")]):
+def downloadYoutube(
+    outputfolder: InputTypes.outputfolder.value,
+    urls: Annotated[List[str], typer.Argument(help="Urls to be downloaded")],
+):
     """Download one or more videos from youtube"""
     from .fileFetcher import getFromYoutube
     from .UI import genProgressTable
@@ -111,23 +117,43 @@ def downloadYoutube(outputfolder: InputTypes.outputfolder.value, urls: Annotated
 
 
 @app.command(rich_help_panel="Youtube")
-def downloadYoutubePlaylist(outputfolder: Annotated[Path, typer.Argument(help="Folder to place downloaded files")], url: Annotated[str, typer.Argument(help="Url to playlist")]):
+def downloadYoutubePlaylist(
+    outputfolder: Annotated[
+        Path, typer.Argument(help="Folder to place downloaded files")
+    ],
+    url: Annotated[str, typer.Argument(help="Url to playlist")],
+):
     """Download full Youtube playlist"""
     from pytube import Playlist
 
     urls = Playlist(url)
     downloadYoutube(outputfolder, urls)
 
+
 class ConcatMethods(str, Enum):
     moviepy = "moviepy"
     ffmpeg = "ffmpeg"
+
 
 @app.command(rich_help_panel="Media file manipulation")
 def concatmp4s(
     outputpath: InputTypes.outputpath_single.value,
     inputpaths: InputTypes.inputpaths.value,
-    recode: Annotated[bool, typer.Option(help="Set if you want ffmpeg to recode the video, might solve issues, but takes much longer.")] = False,
-    method: Annotated[str, typer.Option(help="Method to process concat with.", autocompletion=lambda incomplete: template_enum_completer(ConcatMethods, incomplete))]="moviepy",
+    recode: Annotated[
+        bool,
+        typer.Option(
+            help="Set if you want ffmpeg to recode the video, might solve issues, but takes much longer."
+        ),
+    ] = False,
+    method: Annotated[
+        str,
+        typer.Option(
+            help="Method to process concat with.",
+            autocompletion=lambda incomplete: template_enum_completer(
+                ConcatMethods, incomplete
+            ),
+        ),
+    ] = "moviepy",
 ):
     """Concat mp4 videos into single video using either ffmpeg or moviepy-package"""
     from .fileHandler import (
@@ -166,7 +192,7 @@ def concatmp4s(
 def transcribeWithAPI(
     inputpath: InputTypes.inputpaths.value,
     outputfolder: InputTypes.outputfolder.value = None,
-    filefilter: InputTypes.filefilter.value= FileFilters.none,
+    filefilter: InputTypes.filefilter.value = FileFilters.none,
 ):
     """Transcribe files with OpenAI whisper API"""
     import datetime
@@ -178,27 +204,9 @@ def transcribeWithAPI(
         getTranscriptInOutPaths,
         writeToFile,
     )
-    from .fileHandler import getLength_old
+    from .fileHandler import getLength_old, base_getInOutPaths
 
     filefilter = FileFilters.getFilter(filefilter)
-
-    def getPairs(inputPaths, outputFolder):
-        filePairs = getTranscriptInOutPaths(inputPaths, outputFolder, "api", filefilter)
-        # Get only the ones that aren't processed
-        ignoreFilePairs = [filePair for filePair in filePairs if filePair[1].is_file()]
-        filePairs = [
-            filePair for filePair in filePairs if filePair not in ignoreFilePairs
-        ]
-        return filePairs
-
-    def convertToMp3(filePairs: FilePairType):
-        if len(list(filter(lambda x: x[0].suffix != ".mp3", filePairs))) > 0:
-            logger.info(
-                "Detected that some of the input files were not mp3's. Converting them first."
-            )
-            return mp4tomp3([pair[0] for pair in filePairs])
-
-
 
     def process(progress: Progress, inputPath: Path, outputPath: Path):
         logger.info(f'Transcribing with API with file "{inputPath}"')
@@ -220,17 +228,42 @@ def transcribeWithAPI(
     def costEstimateMethod(input: Path) -> Price:
         return whisper.calcPrice(getLength_old(input) / 60)
 
-    filePairs = getPairs(inputpath, outputfolder)
-    convertToMp3(filePairs)
+    # Convert to mp3 if there are any files that does not have a mp3
+    # TODO Move to converting of types to its own command, a bit to complex to have it in this one, replace the mp4tomp3 function with this new function
+    allMediaFilePairs = base_getInOutPaths(
+        inputpath, outputfolder, ["**/*.mp4", "**/*.m4a", "**/*.ogg"], "", "", "mp3"
+    )
+    allMediaFilePairs = ignoreAlreadyProcessed(allMediaFilePairs)
 
-    filePairs = getPairs(inputpath, outputfolder)
-    templateCommand(process, filePairs, costEstimateMethod)
-    
-    logger.info("Finnished transcribing!")
+    if len(allMediaFilePairs) > 0:
+        logger.info(
+            "Detected that some of the input files were not mp3's. Converting them first."
+        )
+        def process_method(progress, inputFile, outputFile):
+            from .fileHandler import ToMp3
+            ToMp3(inputFile, outputFile, progress=progress)
+
+        templateProcessCommand(process_method, allMediaFilePairs)
+
+    filePairs = getTranscriptInOutPaths(inputpath, outputfolder, "api", filefilter)
+    filePairs = [*filePairs, ]
+    # Get only the ones that aren't processed
+    filePairs = ignoreAlreadyProcessed(filePairs)
+
+    accepted = templatePriceEstimate(filePairs, costEstimateMethod)
+    if not accepted:
+        return
+
+    templateProcessCommand(process, filePairs)
+
+    logger.info("Finished transcribing!")
 
 
 @app.command(rich_help_panel="Media file manipulation")
-def mp4tomp3(inputpaths: InputTypes.inputpaths.value, outputfolder: InputTypes.outputfolder.value = None):
+def mp4tomp3(
+    inputpaths: InputTypes.inputpaths.value,
+    outputfolder: InputTypes.outputfolder.value = None,
+):
     """Convert mp4 to mp3"""
     from .fileHandler import base_getInOutPaths, ToMp3
     from .UI import genProgressTable
@@ -258,7 +291,9 @@ def mp4tomp3(inputpaths: InputTypes.inputpaths.value, outputfolder: InputTypes.o
 
 @app.command(rich_help_panel="AI commands")
 def summarizeTranscripts(
-    inputpaths: InputTypes.inputpaths.value, outputfolder: InputTypes.outputfolder.value = None, pdf: InputTypes.pdf.value = False
+    inputpaths: InputTypes.inputpaths.value,
+    outputfolder: InputTypes.outputfolder.value = None,
+    pdf: InputTypes.pdf.value = False,
 ):
     """Sumarize text transcript using GPT-4 API"""
     from .UI import genPriceTable
@@ -312,7 +347,6 @@ def summarizeTranscripts(
         mdToPdf([pair[1] for pair in filePairs])
 
 
-
 @app.command(rich_help_panel="AI commands")
 def structureTranscripts(
     inputpath: InputTypes.inputpaths.value,
@@ -349,16 +383,19 @@ def structureTranscripts(
             length = len(f.read())
             costEstimate = gpt_4_1106_preview.calcPrice(length, length / 6)
             return costEstimate
-        
 
-    filePairs = getSummaryInOutPaths(
+    filePairs: FilePairType = getSummaryInOutPaths(
         inputpath, outputfolder, pattern="**/*.txt", prefix="structured_"
     )
+    filePairs: FilePairType = ignoreAlreadyProcessed(filePairs)
+
+    accepted = templatePriceEstimate(filePairs, priceEstimateMethod)
+    if not accepted:
+        return
 
     estimatedEndPrice = Price(0, 0)
     logger.info("Structuring transcripts")
-
-    templateCommand(processing, filePairs, priceEstimateMethod)
+    templateProcessCommand(processing, filePairs)
 
     print(f"Finished, estimated spending is: {estimatedEndPrice}")
 
@@ -368,7 +405,11 @@ def structureTranscripts(
 
 @app.command(rich_help_panel="Media file manipulation")
 def trimsilence(
-    inputpaths: InputTypes.inputpaths.value, outputfolder: InputTypes.outputfolder.value = None, only_leading: Annotated[bool, typer.Option(help="Set to only trim the silence at start of clip")] = False
+    inputpaths: InputTypes.inputpaths.value,
+    outputfolder: InputTypes.outputfolder.value = None,
+    only_leading: Annotated[
+        bool, typer.Option(help="Set to only trim the silence at start of clip")
+    ] = False,
 ):
     """Trim the silence from mp4 video, AI transcription can often get confused if there are to much silence in a clip and start halucinating"""
     from .fileHandler import base_getInOutPaths, trimSilence
@@ -403,7 +444,10 @@ def trimsilence(
 
 
 @app.command(rich_help_panel="Text file manipulation")
-def mdToPdf(inputpaths: InputTypes.inputpaths.value, outputfolder: InputTypes.outputfolder.value = None):
+def mdToPdf(
+    inputpaths: InputTypes.inputpaths.value,
+    outputfolder: InputTypes.outputfolder.value = None,
+):
     """Convert markdown to pdf using pandoc"""
     from .CommandRunners import runCommand
     from .fileHandler import (
