@@ -2,7 +2,7 @@ import asyncio
 import math
 import subprocess
 import shutil
-from typing import List, Tuple, TypeAlias
+from typing import List
 from pydub import AudioSegment
 from pydub.silence import detect_leading_silence, detect_nonsilent
 import glob
@@ -18,7 +18,7 @@ from loguru import logger
 
 import ffmpeg
 
-from .Types import FilePairType
+from .Types import FilePairType, ToMp3_FileTypes
 
 from .CommandRunners import runCommand, runFfmpegCommandAsync
 
@@ -61,7 +61,7 @@ def ToMp3(input, output=None, progress=None):
 
     tempOut = generateWorkbenchPath(output)
 
-    filetype = input.suffix.replace(".", "")
+    filetype = ToMp3_FileTypes(input.suffix.replace(".", ""))
 
     if progress is not None:
         totalLength = getLength(input)
@@ -73,21 +73,21 @@ def ToMp3(input, output=None, progress=None):
         else None
     )
 
-    if filetype == "mp4":
+    if filetype is ToMp3_FileTypes.mp4:
         asyncio.run(
             runFfmpegCommandAsync(
                 f'ffmpeg -i "{input}" -vn "{tempOut}"',
                 progressCallback=progressCallback,
             )
         )
-    elif filetype == "m4a":
+    elif filetype is ToMp3_FileTypes.m4a:
         asyncio.run(
             runFfmpegCommandAsync(
                 f'ffmpeg -i "{input}" -c:v copy -c:a libmp3lame -q:a 4 "{tempOut}"',
                 progressCallback=progressCallback,
             )
         )
-    else:
+    elif filetype is ToMp3_FileTypes.ogg:
         asyncio.run(
             runFfmpegCommandAsync(
                 f'ffmpeg -i "{input}" "{tempOut}"', progressCallback=progressCallback

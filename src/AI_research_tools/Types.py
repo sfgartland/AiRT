@@ -21,6 +21,11 @@ class FileFilters(str, Enum):
         }
         return map[filter]
 
+class ToMp3_FileTypes(str, Enum):
+    mp4 = "mp4"
+    m4a = "m4a"
+    ogg = "ogg"
+
 FilePairType: TypeAlias = List[Tuple[Path, Path]]
 
 
@@ -55,6 +60,14 @@ class InputTypes(Enum):
             help="Select a filter to apply to the list of input files",
             autocompletion=lambda incomplete: template_enum_completer(FileFilters, incomplete),
         ),
+    ]
+
+    tomp3_filetypes: TypeAlias = Annotated[
+        List[ToMp3_FileTypes],
+        typer.Option(
+            help="filetypes to convert",
+            autocompletion=lambda incomplete: template_enum_completer(ToMp3_FileTypes, incomplete)
+        )
     ]
 
     pdf: TypeAlias = Annotated[bool, typer.Option(help="Set for converting markdown file to PDF once done")]

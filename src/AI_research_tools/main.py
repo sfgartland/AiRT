@@ -15,7 +15,7 @@ from rich.console import Console
 
 from .UI import template_enum_completer
 
-from .Types import FilePairType, InputTypes, FileFilters
+from .Types import FilePairType, InputTypes, FileFilters, ToMp3_FileTypes
 
 
 console = Console()
@@ -228,25 +228,8 @@ def transcribeWithAPI(
     def costEstimateMethod(input: Path) -> Price:
         return whisper.calcPrice(getLength_old(input) / 60)
 
-    # Convert to mp3 if there are any files that does not have a mp3
-    # TODO Move to converting of types to its own command, a bit to complex to have it in this one, replace the mp4tomp3 function with this new function
-    allMediaFilePairs = base_getInOutPaths(
-        inputpath, outputfolder, ["**/*.mp4", "**/*.m4a", "**/*.ogg"], "", "", "mp3"
-    )
-    allMediaFilePairs = ignoreAlreadyProcessed(allMediaFilePairs)
-
-    if len(allMediaFilePairs) > 0:
-        logger.info(
-            "Detected that some of the input files were not mp3's. Converting them first."
-        )
-        def process_method(progress, inputFile, outputFile):
-            from .fileHandler import ToMp3
-            ToMp3(inputFile, outputFile, progress=progress)
-
-        templateProcessCommand(process_method, allMediaFilePairs)
 
     filePairs = getTranscriptInOutPaths(inputpath, outputfolder, "api", filefilter)
-    filePairs = [*filePairs, ]
     # Get only the ones that aren't processed
     filePairs = ignoreAlreadyProcessed(filePairs)
 
@@ -260,33 +243,32 @@ def transcribeWithAPI(
 
 
 @app.command(rich_help_panel="Media file manipulation")
-def mp4tomp3(
+def tomp3(
     inputpaths: InputTypes.inputpaths.value,
     outputfolder: InputTypes.outputfolder.value = None,
+    filetypes: InputTypes.tomp3_filetypes.value = [e for e in ToMp3_FileTypes]
 ):
-    """Convert mp4 to mp3"""
-    from .fileHandler import base_getInOutPaths, ToMp3
-    from .UI import genProgressTable
+    """Convert diverse mediafiles to mp3"""
+    from .fileHandler import base_getInOutPaths
+        # Convert to mp3 if there are any files that does not have a mp3
+    # TODO Move to converting of types to its own command, a bit to complex to have it in this one, replace the mp4tomp3 function with this new function
+    allMediaFilePairs = base_getInOutPaths(
+        inputpaths, outputfolder, [f"**/*.{e.value}" for e in filetypes], "", "", "mp3"
+    )
+    allMediaFilePairs = ignoreAlreadyProcessed(allMediaFilePairs)
 
-    filePairs = base_getInOutPaths(inputpaths, outputfolder, "**/*.mp4", "", "", "mp3")
-    # Get only the ones that aren't processed
-    ignoreFilePairs = [filePair for filePair in filePairs if filePair[1].is_file()]
-    filePairs = [filePair for filePair in filePairs if filePair not in ignoreFilePairs]
+    if len(allMediaFilePairs) == 0:
+        logger.info("Couldn't find any unconverted files in the input paths. Exiting!")
+    else:
+        logger.info(
+            "Converting media files to mp3"
+        )
+        def process_method(progress, inputFile, outputFile):
+            from .fileHandler import ToMp3
+            ToMp3(inputFile, outputFile, progress=progress)
 
-    entries = [[str(pair[0]), Progress(console=console)] for pair in filePairs]
-    progressTable = lambda completed: genProgressTable(entries, completed)
-    outputs = []
-    with Live(progressTable(0), refresh_per_second=4, console=console) as live:
-        for index, entry in enumerate(entries):
-            _, progress = entry
-            inputFile, outputFile = filePairs[index]
-            logger.info("Converting mp4's to mp3's")
+        templateProcessCommand(process_method, allMediaFilePairs)
 
-            output = ToMp3(inputFile, outputFile, progress=progress)
-            outputs.append(output)
-            live.update(progressTable(index + 1))
-
-    return outputs
 
 
 @app.command(rich_help_panel="AI commands")
