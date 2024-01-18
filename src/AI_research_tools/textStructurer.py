@@ -87,7 +87,10 @@ def getStructureFromGPT(
             structuredSections.append(x) for x in structuredSection
         ]  # Adds all the sections to the main output
         if progress is not None:
-            progress.update(struct_task, completed=index+1)
+            progress.update(struct_task, completed=index+1) # TODO fix progress, currently it's wrong
+
+    if progress is not None:
+        progress = "Finished"
 
     return structuredSections, responses
 

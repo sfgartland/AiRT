@@ -339,26 +339,28 @@ def structureTranscripts(
     from .price import gpt_4_1106_preview, Price
     from .summarizer import getSummaryInOutPaths, saveObjectToPkl
     from .fileHandler import makeSureFolderExists
-    from .textStructurer import sectionListToMarkdown, getStructureFromGPT
+    from .textStructurer import sectionListToMarkdown, getStructureFromGPT, checkSimilarityToOriginal
 
     def processing(progress: Progress, inputPath: Path, outputPath: Path):
         sections, responses = getStructureFromGPT(inputPath, progress=progress)
 
         # TODO fix this estimated price stuff
-        estimatedEndPrice += Price.sumPrices(
-            [
-                gpt_4_1106_preview().calcPriceFromResponse(response)
-                for response in responses
-            ]
-        )
+        # estimatedEndPrice += Price.sumPrices(
+        #     [
+        #         gpt_4_1106_preview().calcPriceFromResponse(response)
+        #         for response in responses
+        #     ]
+        # )
 
         makeSureFolderExists(outputPath)
-        with open(outputPath, "w", encoding="utf-8") as outputPath:
-            outputPath.write(sectionListToMarkdown(sections))
+        with open(outputPath, "w", encoding="utf-8") as file:
+            file.write(sectionListToMarkdown(sections))
+
         saveObjectToPkl(
             responses,
             outputPath.parent / f"text-struct-responses_{outputPath.stem}.pkl",
         )
+        logger.info(f"Finished structuring and got a similarity score between un-structured and structured text of {checkSimilarityToOriginal(inputPath, outputPath)}")
 
     def priceEstimateMethod(input: Path):
         with open(input, "r", encoding="utf-8") as f:
@@ -375,11 +377,11 @@ def structureTranscripts(
     if not accepted:
         return
 
-    estimatedEndPrice = Price(0, 0)
+    # estimatedEndPrice = Price(0, 0)
     logger.info("Structuring transcripts")
     templateProcessCommand(processing, filePairs)
 
-    print(f"Finished, estimated spending is: {estimatedEndPrice}")
+    # print(f"Finished, estimated spending is: {estimatedEndPrice}")
 
     if pdf:
         mdToPdf([pair[1] for pair in filePairs])
