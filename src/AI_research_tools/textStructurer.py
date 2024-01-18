@@ -63,7 +63,7 @@ def getStructureFromGPT(
     structuredSections = []
     responses = []
     if progress is not None:
-        struct_task = progress.add_task("Structuring transcript...", complete=len(transcriptChunks))
+        struct_task = progress.add_task("Structuring transcript...", total=len(transcriptChunks), completed=0)
 
     for index, transChunk in enumerate(transcriptChunks):
         # If there are already processed section, remove the last and include it in this one
