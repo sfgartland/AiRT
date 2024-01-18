@@ -44,7 +44,7 @@
             "type": "python",
             "request": "launch",
             "module": "AI_research_tools",
-            "args": ["transcribewithapi", "output/PHILOS133/"],
+            "args": ["transcribewithapi", "output/RHETOR120/RHETOR120 - Lecture 1- Intro"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
@@ -54,6 +54,15 @@
             "request": "launch",
             "module": "AI_research_tools",
             "args": ["structuretranscripts", "output/PHILOS178/"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "tomp3",
+            "type": "python",
+            "request": "launch",
+            "module": "AI_research_tools",
+            "args": ["tomp3", "output/RHETOR120/RHETOR120 - Lecture 1- Intro"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
