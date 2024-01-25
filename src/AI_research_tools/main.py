@@ -20,6 +20,9 @@ from .Types import FilePairType, InputTypes, FileFilters, ToMp3_FileTypes
 
 from .helpers import USER_DIR
 
+
+#### Logger setup start
+
 console = Console()
 logger.remove()
 
@@ -50,7 +53,48 @@ logger.add(
 )
 logger.add(str(USER_DIR)+"/logs/transcriber-{time}.log")
 
+#### Logger setup end
+
+
+#### Typer setup start
+
 app = typer.Typer()
+
+def import_user_module(path: Path, name: str):
+    import importlib
+    import sys
+    
+    spec = importlib.util.spec_from_file_location(name, path)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    spec.loader.exec_module(module)
+
+    return module
+
+
+def add_custom_commands():
+    """Imports python files from '.airt' directory and adds the functions prefixed with 'command_' into the custom commands in typer"""
+    import glob
+    from inspect import getmembers, isfunction
+
+    custom_files = glob.glob(f"{USER_DIR}/*.py")
+    for custom_file in custom_files:
+        custom_file = Path(custom_file)
+        module = import_user_module(custom_file, custom_file.stem)
+        functions = getmembers(module, isfunction)
+
+
+        command_functions = [(x[0].replace("command_", ""), x[1]) for x in functions if "command_" in x[0]]
+        custom_app = typer.Typer()
+        app.add_typer(custom_app, name="custom", help="Custom commands loaded form userdir")
+        for command in command_functions:
+            custom_app.command(command[0])(command[1])
+
+
+add_custom_commands()
+
+#### Typer setup end
+
 
 
 def ignoreAlreadyProcessed(filePairs: FilePairType):
@@ -492,6 +536,7 @@ def ingest_and_process():
     spec.loader.exec_module(foo)
     foo.main()
 
+
 @app.command()
 def development():
     """Placeholder command for development purposes"""
@@ -503,4 +548,5 @@ def pdfToMd(inputfile: Path, outputfile: Path):
     from .PDFContentExtractor import pdf2md
 
     pdf2md(inputfile, outputfile)
+
 
