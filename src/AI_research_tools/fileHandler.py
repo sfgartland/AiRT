@@ -347,7 +347,6 @@ def base_getInOutPaths(
                 Path(file) for file in glob.glob(f"{inputPath}", recursive=True)
             ]
     elif isinstance(inputPath, List):
-        logger.debug(inputPath)
         inputFolder = getCommonParent(inputPath)
         inputFiles = inputPath
 
