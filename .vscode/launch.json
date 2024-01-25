@@ -53,7 +53,7 @@
             "type": "python",
             "request": "launch",
             "module": "AI_research_tools",
-            "args": ["structuretranscripts", "output/PHILOS178/"],
+            "args": ["structuretranscripts", "output/RHETOR120/RHETOR120 - Lecture 1- Intro"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
@@ -67,11 +67,29 @@
             "justMyCode": true
         },
         {
+            "name": "pdftomd",
+            "type": "python",
+            "request": "launch",
+            "module": "AI_research_tools",
+            "args": ["pdftomd", "testing/testing2.pdf", "testing/testing2.md"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
             "name": "trimsilence",
             "type": "python",
             "request": "launch",
             "module": "AI_research_tools",
             "args": ["trimsilence", "output/Zizek return to hegel 2009/Slavoj Žižek The Return To Hegel 2009 316.mp4"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "ingest-and-process",
+            "type": "python",
+            "request": "launch",
+            "module": "AI_research_tools",
+            "args": ["ingest-and-process"],
             "console": "integratedTerminal",
             "justMyCode": true
         },

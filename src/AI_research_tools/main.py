@@ -1,3 +1,4 @@
+from time import sleep
 import typer
 from typing_extensions import Annotated
 
@@ -17,6 +18,7 @@ from .UI import template_enum_completer
 
 from .Types import FilePairType, InputTypes, FileFilters, ToMp3_FileTypes
 
+from .helpers import USER_DIR
 
 console = Console()
 logger.remove()
@@ -46,7 +48,7 @@ logger.add(
     format=_log_formatter,
     colorize=True,
 )
-logger.add("logs/transcriber-{time}.log")
+logger.add(str(USER_DIR)+"/logs/transcriber-{time}.log")
 
 app = typer.Typer()
 
@@ -56,7 +58,9 @@ def ignoreAlreadyProcessed(filePairs: FilePairType):
     return [filePair for filePair in filePairs if filePair not in ignoreFilePairs]
 
 
-def templatePriceEstimate(filePairs: FilePairType, priceEstimateMethod: callable) -> bool:
+def templatePriceEstimate(
+    filePairs: FilePairType, priceEstimateMethod: callable
+) -> bool:
     from .UI import genPriceTable
 
     priceEntries = [[pair, None] for pair in filePairs]
@@ -77,7 +81,7 @@ def templateProcessCommand(
     from .UI import genProgressTable
 
     # Get only the ones that aren't processed
-    filePairs = ignoreAlreadyProcessed(filePairs)
+    filePairs = ignoreAlreadyProcessed(filePairs) # TODO this is also used before, decide where to remove it
 
     # TODO Move all of these tabel Live view functions into a common function for all CLI commands
 
@@ -193,6 +197,7 @@ def transcribeWithAPI(
     inputpath: InputTypes.inputpaths.value,
     outputfolder: InputTypes.outputfolder.value = None,
     filefilter: InputTypes.filefilter.value = FileFilters.none,
+    y: InputTypes.autoaccept_prompts.value = False,
 ):
     """Transcribe files with OpenAI whisper API"""
     import datetime
@@ -204,7 +209,7 @@ def transcribeWithAPI(
         getTranscriptInOutPaths,
         writeToFile,
     )
-    from .fileHandler import getLength_old, base_getInOutPaths
+    from .fileHandler import getLength_old
 
     filefilter = FileFilters.getFilter(filefilter)
 
@@ -228,14 +233,17 @@ def transcribeWithAPI(
     def costEstimateMethod(input: Path) -> Price:
         return whisper.calcPrice(getLength_old(input) / 60)
 
-
     filePairs = getTranscriptInOutPaths(inputpath, outputfolder, "api", filefilter)
     # Get only the ones that aren't processed
     filePairs = ignoreAlreadyProcessed(filePairs)
-
-    accepted = templatePriceEstimate(filePairs, costEstimateMethod)
-    if not accepted:
+    if len(filePairs) == 0:
+        logger.info("No files to transcribe... Exiting!")
         return
+
+    if not y:
+        accepted = templatePriceEstimate(filePairs, costEstimateMethod)
+        if not accepted:
+            return
 
     templateProcessCommand(process, filePairs)
 
@@ -246,29 +254,32 @@ def transcribeWithAPI(
 def tomp3(
     inputpaths: InputTypes.inputpaths.value,
     outputfolder: InputTypes.outputfolder.value = None,
-    filetypes: InputTypes.tomp3_filetypes.value = [e for e in ToMp3_FileTypes]
+    filetypes: InputTypes.tomp3_filetypes.value = [e for e in ToMp3_FileTypes],
 ):
     """Convert diverse mediafiles to mp3"""
     from .fileHandler import base_getInOutPaths
-        # Convert to mp3 if there are any files that does not have a mp3
+
+    # Convert to mp3 if there are any files that does not have a mp3
     # TODO Move to converting of types to its own command, a bit to complex to have it in this one, replace the mp4tomp3 function with this new function
     allMediaFilePairs = base_getInOutPaths(
         inputpaths, outputfolder, [f"**/*.{e.value}" for e in filetypes], "", "", "mp3"
     )
     allMediaFilePairs = ignoreAlreadyProcessed(allMediaFilePairs)
+    if len(allMediaFilePairs) == 0:
+        logger.info("No files to convert to mp3... Exiting!")
+        return
 
     if len(allMediaFilePairs) == 0:
         logger.info("Couldn't find any unconverted files in the input paths. Exiting!")
     else:
-        logger.info(
-            "Converting media files to mp3"
-        )
+        logger.info("Converting media files to mp3")
+
         def process_method(progress, inputFile, outputFile):
             from .fileHandler import ToMp3
+
             ToMp3(inputFile, outputFile, progress=progress)
 
         templateProcessCommand(process_method, allMediaFilePairs)
-
 
 
 @app.command(rich_help_panel="AI commands")
@@ -276,6 +287,7 @@ def summarizeTranscripts(
     inputpaths: InputTypes.inputpaths.value,
     outputfolder: InputTypes.outputfolder.value = None,
     pdf: InputTypes.pdf.value = False,
+    y: InputTypes.autoaccept_prompts.value = False,
 ):
     """Sumarize text transcript using GPT-4 API"""
     from .UI import genPriceTable
@@ -287,45 +299,39 @@ def summarizeTranscripts(
         summarizeLectureTranscript,
     )
     from .price import gpt_4_1106_preview, Price
-
     filePairs = getSummaryInOutPaths(
         inputpaths, outputfolder, pattern="**/*.txt", prefix="summarized_"
     )
     # Get only the ones that aren't processed
-    ignoreFilePairs = [filePair for filePair in filePairs if filePair[1].is_file()]
-    filePairs = [filePair for filePair in filePairs if filePair not in ignoreFilePairs]
-
-    priceEntries = [[pair, None] for pair in filePairs]
-    ignoredEntries = [[pair, None] for pair in ignoreFilePairs]
-    priceTable = lambda: genPriceTable(priceEntries, ignoredEntries=ignoredEntries)
-    with Live(priceTable(), refresh_per_second=4, console=console) as live:
-        for index, priceEntry in enumerate(priceEntries):
-            inputpaths = priceEntry[0][0]
-            with open(inputpaths, "r", encoding="utf-8") as f:
-                length = len(f.read())
-                costEstimate = gpt_4_1106_preview().calcPrice(length, 3600)
-            priceEntries[index][1] = costEstimate
-            live.update(priceTable())
-
-    if not Confirm.ask("Accept the cost and proceed?"):
+    filePairs = ignoreAlreadyProcessed(filePairs)
+    if len(filePairs) == 0:
+        logger.info("No files to summarize... Exiting!")
         return
 
-    with Progress(console=console) as progress:
-        summarize_task = progress.add_task("Summarizing...", total=len(filePairs))
+    def costEstimateMethod(input: Path) -> Price:
+        with open(input, "r", encoding="utf-8") as f:
+            length = len(f.read())
+            return gpt_4_1106_preview().calcPrice(length, 3600)
 
-        estimatedEndPrice = Price(0, 0)
-        for inputFile, outputFile in filePairs:
-            # TODO add so that the full response object is saved to a pickle file, makes it easier to revisit it later on
-            response = summarizeLectureTranscript(inputFile)
-            estimatedEndPrice += gpt_4_1106_preview().calcPriceFromResponse(response)
-            content = response.choices[0].message.content
-            saveResponseToMd(content, outputFile)
-            saveObjectToPkl(response, generatePicklePath(outputFile))
-            progress.update(summarize_task, advance=1)
+    if not y:
+        accepted = templatePriceEstimate(filePairs, costEstimateMethod)
+        if not accepted:
+            return
+    
+    def process(progress: Progress, inputPath: Path, outputPath: Path):
+        task = progress.add_task("Summarizing...", total=None)
+        # TODO add so that the full response object is saved to a pickle file, makes it easier to revisit it later on
+        response = summarizeLectureTranscript(inputPath)
+        # estimatedEndPrice += gpt_4_1106_preview().calcPriceFromResponse(response)
+        content = response.choices[0].message.content
+        saveResponseToMd(content, outputPath)
+        # saveObjectToPkl(response, generatePicklePath(outputPath))
+        task = progress.update(task, completed=1, total=1)
 
-    print(f"Finished, estimated spending is: {estimatedEndPrice}")
+    templateProcessCommand(process, filePairs)
+    # print(f"Finished, estimated spending is: {estimatedEndPrice}")
 
-    if pdf:
+    if pdf and len(filePairs) > 0:
         mdToPdf([pair[1] for pair in filePairs])
 
 
@@ -334,12 +340,18 @@ def structureTranscripts(
     inputpath: InputTypes.inputpaths.value,
     outputfolder: InputTypes.outputfolder.value = None,
     pdf: InputTypes.pdf.value = False,
+    y: InputTypes.autoaccept_prompts.value = False,
+    attempts: int = 2
 ):
     """Note: Experimental! Structures a raw text transcript into paragraphs with headings using GPT-4 API"""
     from .price import gpt_4_1106_preview, Price
     from .summarizer import getSummaryInOutPaths, saveObjectToPkl
     from .fileHandler import makeSureFolderExists
-    from .textStructurer import sectionListToMarkdown, getStructureFromGPT, checkSimilarityToOriginal
+    from .textStructurer import (
+        sectionListToMarkdown,
+        getStructureFromGPT,
+        checkSimilarityToOriginal,
+    )
 
     def processing(progress: Progress, inputPath: Path, outputPath: Path):
         sections, responses = getStructureFromGPT(inputPath, progress=progress)
@@ -360,9 +372,11 @@ def structureTranscripts(
             responses,
             outputPath.parent / f"text-struct-responses_{outputPath.stem}.pkl",
         )
-        logger.info(f"Finished structuring and got a similarity score between un-structured and structured text of {checkSimilarityToOriginal(inputPath, outputPath)}")
+        logger.info(
+            f"Finished structuring and got a similarity score between un-structured and structured text of {checkSimilarityToOriginal(inputPath, outputPath)}"
+        )
 
-    def priceEstimateMethod(input: Path):
+    def priceEstimateMethod(input: Path) -> Price:
         with open(input, "r", encoding="utf-8") as f:
             length = len(f.read())
             costEstimate = gpt_4_1106_preview.calcPrice(length, length / 6)
@@ -372,18 +386,34 @@ def structureTranscripts(
         inputpath, outputfolder, pattern="**/*.txt", prefix="structured_"
     )
     filePairs: FilePairType = ignoreAlreadyProcessed(filePairs)
-
-    accepted = templatePriceEstimate(filePairs, priceEstimateMethod)
-    if not accepted:
+    if len(filePairs) == 0:
+        logger.info("No files to structure... Exiting!")
         return
+
+    if not y:
+        accepted = templatePriceEstimate(filePairs, priceEstimateMethod)
+        if not accepted:
+            return
 
     # estimatedEndPrice = Price(0, 0)
     logger.info("Structuring transcripts")
-    templateProcessCommand(processing, filePairs)
+
+    # for loop to rerun the structuring since it is somewhat unstable
+    for i in range(1, attempts+1):
+        try:
+            templateProcessCommand(processing, filePairs)
+        except ValueError as e:
+            logger.debug(e)
+            logger.warning(f"The structuring of the transcript faile on attempt {i} of {attempts}...{' Trying again!' if i != attempts else ''}")
+            if i == attempts:
+                logger.error("All attempts at structuring the transcript failed... Exiting!")
+                raise e
+        else:
+            break # If it was successful exit the loop
 
     # print(f"Finished, estimated spending is: {estimatedEndPrice}")
 
-    if pdf:
+    if pdf and len(filePairs) > 0:
         mdToPdf([pair[1] for pair in filePairs])
 
 
@@ -451,6 +481,16 @@ def mdToPdf(
             runCommand(f'pandoc "{inputFile}" -o "{outputFile}"')
             progress.update(pandoc_task, advance=1)
 
+@app.command()
+def ingest_and_process():
+    import importlib
+    import sys
+
+    spec = importlib.util.spec_from_file_location("ingest_and_process", f"{USER_DIR}/ingest_and_process.py")
+    foo = importlib.util.module_from_spec(spec)
+    sys.modules["ingest_and_process"] = foo
+    spec.loader.exec_module(foo)
+    foo.main()
 
 @app.command()
 def development():
@@ -458,31 +498,9 @@ def development():
     print("Dev")
 
 
-# @app.command()
-# def pdfToMd(inputfile: Path, outputfile: Path):
-#     pdf2md(inputfile, outputfile)
+@app.command()
+def pdfToMd(inputfile: Path, outputfile: Path):
+    from .PDFContentExtractor import pdf2md
 
+    pdf2md(inputfile, outputfile)
 
-# if __name__ == "__main__":
-# getFromYoutube("https://www.youtube.com/watch?v=3tvfq8ehHOk&embeds_referring_euri=https%3A%2F%2Fphilosophy.columbia.edu%2F&source_ve_path=OTY3MTQ&feature=emb_imp_woyt", "testout")
-# copyFilesToGoogleColab("output/PHILOS133", "G:/Min disk/google-Collab-testing-folder/PHILOS133", fileFilter=filter)
-# runCommand("nougat test.pdf -o output_directory -m 0.1.0-base", output_stdout=True)
-
-# batchProcessMediaFiles("output/PHILOS25A", "output/PHILOS25A", ADD_FILTER)
-# batchTranscribeWithAPI("output/PHILOS25A", "output/PHILOS25A")
-# batchSummarizeLectureTranscripts("output/PHILOS25A", "output/PHILOS25A", "**/*_api.txt")
-
-# batchTranscribeWithAPI("output/Opptak FIL2505", "output/Opptak FIL2505")
-# batchSummarizeLectureTranscripts("output/Opptak FIL2505", "inputs/Opptak FIL2505", "**/*_api.txt")
-
-# batchStructureTranscripts("output/Opptak FIL2505", "output/Opptak FIL2505")
-# print(checkSimilarityToOriginal("./testing/trans.txt", "./testing/outputtest.md"))
-
-# TODO move to function, does batch conversion of audio files
-# files = glob.glob("inputs/Opptak FIL2505/*.m4a")
-# print(f"Converting {len(files)} audio files to mp3")
-# with Progress() as progress:
-#     conversion_task = progress.add_task("Converting audio files to mp3...", total=len(files))
-#     for file in files:
-#         ToMp3(file)
-#         progress.update(conversion_task, advance=1)

@@ -62,6 +62,11 @@ class InputTypes(Enum):
         ),
     ]
 
+    autoaccept_prompts: TypeAlias = Annotated[
+        bool,
+        typer.Option(help = "Use flag to auto-accept all prompts, e.g. for price estimate")
+    ]
+
     tomp3_filetypes: TypeAlias = Annotated[
         List[ToMp3_FileTypes],
         typer.Option(

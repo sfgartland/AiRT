@@ -22,13 +22,16 @@ from .Types import FilePairType, ToMp3_FileTypes
 
 from .CommandRunners import runCommand, runFfmpegCommandAsync
 
+from .helpers import USER_DIR
+
 from moviepy.editor import concatenate_videoclips, VideoFileClip
 from moviepy.video.io.ffmpeg_tools import ffmpeg_extract_subclip
 
 # from ffmpeg_progress_yield import FfmpegProgress
 
+DEFAULT_WORKBENCH_FOLDER = (USER_DIR / "workbench")
 
-def generateWorkbenchPath(inputFile, workbenchPath="workbench"):
+def generateWorkbenchPath(inputFile, workbenchPath=DEFAULT_WORKBENCH_FOLDER):
     makeSureFolderExists(workbenchPath)
     return (
         Path(workbenchPath)
@@ -36,7 +39,7 @@ def generateWorkbenchPath(inputFile, workbenchPath="workbench"):
     )
 
 
-def cleanupWorkbench(workbenchPath="workbench"):
+def cleanupWorkbench(workbenchPath=DEFAULT_WORKBENCH_FOLDER):
     shutil.rmtree(workbenchPath)
 
 
@@ -344,8 +347,9 @@ def base_getInOutPaths(
                 Path(file) for file in glob.glob(f"{inputPath}", recursive=True)
             ]
     elif isinstance(inputPath, List):
+        logger.debug(inputPath)
+        inputFolder = getCommonParent(inputPath)
         inputFiles = inputPath
-        inputFolder = getCommonParent(inputFiles)
 
     if not outputFolder:
         outputFolder = inputFolder

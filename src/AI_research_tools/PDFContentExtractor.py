@@ -17,10 +17,8 @@ import time
 from pathlib import Path
 
 
-def pdf2md(inputPDF, outputMD):
-    inputPDF = Path(inputPDF)
-    outputMD = Path(outputMD)
-    logger.info(f"Converting PDF to Markdown\n{inputPDF}->{outputMD}")
+def pdf2md(inputPDF: Path, outputMD: Path):
+    logger.info(f"Converting PDF to Markdown: {inputPDF}->{outputMD}")
     startTime = time.time()
 
     model_lst = load_all_models()
