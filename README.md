@@ -16,6 +16,7 @@ The example data is a lecture series on Kant's *Critique of Pure Reason* by Dan 
   - Using OpenAI's GPT-4 model
   - *This feature is currently somewhat unstable, might need to be run multiple times to get a good output*
 - Generate detailed price estimates for OpenAI API usage
+- Add `.airtignore` file to any directory to ignore the files in it
 
 ### Upcoming features
 - Convert markdown outputs into pdf's

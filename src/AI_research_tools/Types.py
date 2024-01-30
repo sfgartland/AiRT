@@ -26,7 +26,8 @@ class ToMp3_FileTypes(str, Enum):
     m4a = "m4a"
     ogg = "ogg"
 
-FilePairType: TypeAlias = List[Tuple[Path, Path]]
+FilePairType: TypeAlias = Tuple[Path, Path]
+FilePairsType: TypeAlias = List[FilePairType]
 
 
 class InputTypes(Enum):

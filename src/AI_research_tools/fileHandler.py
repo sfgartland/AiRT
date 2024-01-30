@@ -18,7 +18,7 @@ from loguru import logger
 
 import ffmpeg
 
-from .Types import FilePairType, ToMp3_FileTypes
+from .Types import FilePairType, FilePairsType, ToMp3_FileTypes
 
 from .CommandRunners import runCommand, runFfmpegCommandAsync
 
@@ -310,6 +310,30 @@ def getCommonParent(files: list[Path]):
 
     return commonFolder
 
+def ignoreAlreadyProcessed(filePairs: FilePairsType):
+    ignoreFilePairs = [filePair for filePair in filePairs if filePair[1].is_file()]
+    return [filePair for filePair in filePairs if filePair not in ignoreFilePairs]
+
+# TODO Improve to also accept .gitignore style content in the file, allowing to name ignored files
+def ignoreAirtIgnoreFiles(filePairs: FilePairType):
+    def shouldIgnore(filePair):
+        inputFile = filePair[0]
+
+        currentPath = inputFile.absolute()
+        lastPath = None
+        ignore = False
+        end = False
+        while not ignore and not end:
+            ignore = (currentPath / ".airtignore").is_file()
+            end = currentPath == lastPath # TODO This is not a great way to check if it should be ignored, recode
+            lastPath = currentPath
+            currentPath = currentPath.parent
+        if ignore:
+            logger.info(f"Detected `.airtignore` file, skipping `{inputFile}`!")
+        return ignore
+
+    return [pair for pair in filePairs if not shouldIgnore(pair)]
+
 
 def base_getInOutPaths(
     inputPath: str | Path | List[Path],
@@ -318,7 +342,7 @@ def base_getInOutPaths(
     prefix: str,
     postfix: str,
     filetype: str,
-) -> FilePairType:
+) -> FilePairsType:
     """Reusable function to get input and output paths for summaries"""
     # Casts inputs into Path objects
     if isinstance(inputPath, str):

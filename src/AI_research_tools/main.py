@@ -16,7 +16,7 @@ from rich.console import Console
 
 from .UI import template_enum_completer
 
-from .Types import FilePairType, InputTypes, FileFilters, ToMp3_FileTypes
+from .Types import FilePairsType, InputTypes, FileFilters, ToMp3_FileTypes
 
 from .helpers import USER_DIR
 
@@ -97,13 +97,9 @@ add_custom_commands()
 
 
 
-def ignoreAlreadyProcessed(filePairs: FilePairType):
-    ignoreFilePairs = [filePair for filePair in filePairs if filePair[1].is_file()]
-    return [filePair for filePair in filePairs if filePair not in ignoreFilePairs]
-
 
 def templatePriceEstimate(
-    filePairs: FilePairType, priceEstimateMethod: callable
+    filePairs: FilePairsType, priceEstimateMethod: callable
 ) -> bool:
     from .UI import genPriceTable
 
@@ -120,12 +116,14 @@ def templatePriceEstimate(
 
 
 def templateProcessCommand(
-    processing_method: Callable[[Progress, Path, Path], None], filePairs: FilePairType
+    processing_method: Callable[[Progress, Path, Path], None], filePairs: FilePairsType
 ):
     from .UI import genProgressTable
+    from .fileHandler import ignoreAlreadyProcessed, ignoreAirtIgnoreFiles
 
     # Get only the ones that aren't processed
     filePairs = ignoreAlreadyProcessed(filePairs) # TODO this is also used before, decide where to remove it
+    filePairs = ignoreAirtIgnoreFiles(filePairs)
 
     # TODO Move all of these tabel Live view functions into a common function for all CLI commands
 
@@ -253,7 +251,7 @@ def transcribeWithAPI(
         getTranscriptInOutPaths,
         writeToFile,
     )
-    from .fileHandler import getLength_old
+    from .fileHandler import getLength_old, ignoreAlreadyProcessed, ignoreAirtIgnoreFiles
 
     filefilter = FileFilters.getFilter(filefilter)
 
@@ -280,6 +278,7 @@ def transcribeWithAPI(
     filePairs = getTranscriptInOutPaths(inputpath, outputfolder, "api", filefilter)
     # Get only the ones that aren't processed
     filePairs = ignoreAlreadyProcessed(filePairs)
+    filePairs = ignoreAirtIgnoreFiles(filePairs)
     if len(filePairs) == 0:
         logger.info("No files to transcribe... Exiting!")
         return
@@ -301,7 +300,7 @@ def tomp3(
     filetypes: InputTypes.tomp3_filetypes.value = [e for e in ToMp3_FileTypes],
 ):
     """Convert diverse mediafiles to mp3"""
-    from .fileHandler import base_getInOutPaths
+    from .fileHandler import base_getInOutPaths, ignoreAlreadyProcessed, ignoreAirtIgnoreFiles
 
     # Convert to mp3 if there are any files that does not have a mp3
     # TODO Move to converting of types to its own command, a bit to complex to have it in this one, replace the mp4tomp3 function with this new function
@@ -309,6 +308,7 @@ def tomp3(
         inputpaths, outputfolder, [f"**/*.{e.value}" for e in filetypes], "", "", "mp3"
     )
     allMediaFilePairs = ignoreAlreadyProcessed(allMediaFilePairs)
+    allMediaFilePairs = ignoreAirtIgnoreFiles(allMediaFilePairs)
     if len(allMediaFilePairs) == 0:
         logger.info("No files to convert to mp3... Exiting!")
         return
@@ -343,11 +343,14 @@ def summarizeTranscripts(
         summarizeLectureTranscript,
     )
     from .price import gpt_4_1106_preview, Price
+    from .fileHandler import ignoreAlreadyProcessed, ignoreAirtIgnoreFiles
+
     filePairs = getSummaryInOutPaths(
         inputpaths, outputfolder, pattern="**/*.txt", prefix="summarized_"
     )
     # Get only the ones that aren't processed
     filePairs = ignoreAlreadyProcessed(filePairs)
+    filePairs = ignoreAirtIgnoreFiles(filePairs)
     if len(filePairs) == 0:
         logger.info("No files to summarize... Exiting!")
         return
@@ -390,7 +393,7 @@ def structureTranscripts(
     """Note: Experimental! Structures a raw text transcript into paragraphs with headings using GPT-4 API"""
     from .price import gpt_4_1106_preview, Price
     from .summarizer import getSummaryInOutPaths, saveObjectToPkl
-    from .fileHandler import makeSureFolderExists
+    from .fileHandler import makeSureFolderExists, ignoreAlreadyProcessed, ignoreAirtIgnoreFiles
     from .textStructurer import (
         sectionListToMarkdown,
         getStructureFromGPT,
@@ -426,10 +429,11 @@ def structureTranscripts(
             costEstimate = gpt_4_1106_preview.calcPrice(length, length / 6)
             return costEstimate
 
-    filePairs: FilePairType = getSummaryInOutPaths(
+    filePairs: FilePairsType = getSummaryInOutPaths(
         inputpath, outputfolder, pattern="**/*.txt", prefix="structured_"
     )
-    filePairs: FilePairType = ignoreAlreadyProcessed(filePairs)
+    filePairs: FilePairsType = ignoreAlreadyProcessed(filePairs)
+    filePairs = ignoreAirtIgnoreFiles(filePairs)
     if len(filePairs) == 0:
         logger.info("No files to structure... Exiting!")
         return
@@ -450,8 +454,7 @@ def structureTranscripts(
             logger.debug(e)
             logger.warning(f"The structuring of the transcript faile on attempt {i} of {attempts}...{' Trying again!' if i != attempts else ''}")
             if i == attempts:
-                logger.error("All attempts at structuring the transcript failed... Exiting!")
-                raise e
+                logger.error("All attempts at structuring the transcript failed... Skipping!")
         else:
             break # If it was successful exit the loop
 
@@ -470,7 +473,7 @@ def trimsilence(
     ] = False,
 ):
     """Trim the silence from mp4 video, AI transcription can often get confused if there are to much silence in a clip and start halucinating"""
-    from .fileHandler import base_getInOutPaths, trimSilence
+    from .fileHandler import base_getInOutPaths, trimSilence, ignoreAlreadyProcessed, ignoreAirtIgnoreFiles
     from .UI import genProgressTable
 
     filePairs = base_getInOutPaths(
@@ -482,8 +485,8 @@ def trimsilence(
         "mp4",
     )
     # Get only the ones that aren't processed
-    ignoreFilePairs = [filePair for filePair in filePairs if filePair[1].is_file()]
-    filePairs = [filePair for filePair in filePairs if filePair not in ignoreFilePairs]
+    filePairs = ignoreAlreadyProcessed(filePairs)
+    filePairs = ignoreAirtIgnoreFiles(filePairs)
 
     entries = [[str(pair[0]), Progress(console=console)] for pair in filePairs]
     progressTable = lambda completed: genProgressTable(entries, completed)
@@ -511,12 +514,14 @@ def mdToPdf(
     from .fileHandler import (
         base_getInOutPaths,
         makeSureFolderExists,
+        ignoreAlreadyProcessed,
+        ignoreAirtIgnoreFiles
     )
 
     filePairs = base_getInOutPaths(inputpaths, outputfolder, "**/*.md", "", "", "pdf")
     # Get only the ones that aren't processed
-    ignoreFilePairs = [filePair for filePair in filePairs if filePair[1].is_file()]
-    filePairs = [filePair for filePair in filePairs if filePair not in ignoreFilePairs]
+    filePairs = ignoreAlreadyProcessed(filePairs)
+    filePairs = ignoreAirtIgnoreFiles(filePairs)
 
     with Progress(console=console) as progress:
         pandoc_task = progress.add_task("Converting to pdfs....", total=len(filePairs))

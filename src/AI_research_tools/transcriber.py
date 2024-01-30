@@ -10,7 +10,7 @@ import glob
 from pathlib import Path
 
 from .fileHandler import (
-    FilePairType,
+    FilePairsType,
     base_getInOutPaths,
     cutAudio,
     ToMp3,
@@ -107,7 +107,7 @@ def batchProcessMediaFiles(inputFolder, outputFolder, fileFilter=lambda x: x):
                 logger.error(err)
 
 
-def getTranscriptInOutPaths(inputPath: Path, outputFolder: Path, modelName, fileFilter=lambda x: x) -> FilePairType:
+def getTranscriptInOutPaths(inputPath: Path, outputFolder: Path, modelName, fileFilter=lambda x: x) -> FilePairsType:
     """Reusable function to get input and output paths for transcriptions"""
     return fileFilter(
         base_getInOutPaths(

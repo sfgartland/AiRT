@@ -44,7 +44,7 @@
             "type": "python",
             "request": "launch",
             "module": "AI_research_tools",
-            "args": ["transcribewithapi", "output/RHETOR120/RHETOR120 - Lecture 1- Intro"],
+            "args": ["transcribewithapi", "output/RHETOR120"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
@@ -53,7 +53,7 @@
             "type": "python",
             "request": "launch",
             "module": "AI_research_tools",
-            "args": ["structuretranscripts", "output/RHETOR120/RHETOR120 - Lecture 1- Intro"],
+            "args": ["structuretranscripts", "output/RHETOR120"],
             "console": "integratedTerminal",
             "justMyCode": true
         },
