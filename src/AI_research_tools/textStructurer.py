@@ -69,7 +69,11 @@ def getStructureFromGPT(
         # If there are already processed section, remove the last and include it in this one
         prevChunk = transcriptChunks[index - 1]
         if len(structuredSections) > 0:
-            spilloverIndex = prevChunk.index(structuredSections[-1][1])
+            try:
+                spilloverIndex = prevChunk.index(structuredSections[-1][1])
+            except ValueError as err:
+                err.add_note(f"String not found: \"{structuredSections[-1][1]}\"") # TODO, this isn't printing in the main.py for some reason, look into it
+                raise err
             transChunk = prevChunk[spilloverIndex:] + transChunk
             structuredSections = structuredSections[:-1]
         res = getStructureForSection(transChunk)
