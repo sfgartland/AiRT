@@ -51,7 +51,7 @@ logger.add(
     format=_log_formatter,
     colorize=True,
 )
-logger.add(str(USER_DIR)+"/logs/transcriber-{time}.log")
+logger.add(str(USER_DIR) + "/logs/transcriber-{time}.log")
 
 #### Logger setup end
 
@@ -60,10 +60,11 @@ logger.add(str(USER_DIR)+"/logs/transcriber-{time}.log")
 
 app = typer.Typer()
 
+
 def import_user_module(path: Path, name: str):
     import importlib
     import sys
-    
+
     spec = importlib.util.spec_from_file_location(name, path)
     module = importlib.util.module_from_spec(spec)
     sys.modules[name] = module
@@ -83,10 +84,15 @@ def add_custom_commands():
         module = import_user_module(custom_file, custom_file.stem)
         functions = getmembers(module, isfunction)
 
-
-        command_functions = [(x[0].replace("command_", ""), x[1]) for x in functions if "command_" in x[0]]
+        command_functions = [
+            (x[0].replace("command_", ""), x[1])
+            for x in functions
+            if "command_" in x[0]
+        ]
         custom_app = typer.Typer()
-        app.add_typer(custom_app, name="custom", help="Custom commands loaded form userdir")
+        app.add_typer(
+            custom_app, name="custom", help="Custom commands loaded form userdir"
+        )
         for command in command_functions:
             custom_app.command(command[0])(command[1])
 
@@ -94,8 +100,6 @@ def add_custom_commands():
 add_custom_commands()
 
 #### Typer setup end
-
-
 
 
 def templatePriceEstimate(
@@ -122,7 +126,9 @@ def templateProcessCommand(
     from .fileHandler import ignoreAlreadyProcessed, ignoreAirtIgnoreFiles
 
     # Get only the ones that aren't processed
-    filePairs = ignoreAlreadyProcessed(filePairs) # TODO this is also used before, decide where to remove it
+    filePairs = ignoreAlreadyProcessed(
+        filePairs
+    )  # TODO this is also used before, decide where to remove it
     filePairs = ignoreAirtIgnoreFiles(filePairs)
 
     # TODO Move all of these tabel Live view functions into a common function for all CLI commands
@@ -233,6 +239,56 @@ def concatmp4s(
         concatMp4s_moviepy(inputpaths, outputpath)
 
 
+@app.command(rich_help_panel="AI commands")
+def transcribeLocally(
+    inputpath: InputTypes.inputpaths.value,
+    outputfolder: InputTypes.outputfolder.value = None,
+    filefilter: InputTypes.filefilter.value = FileFilters.none,
+    model: InputTypes.whispermodels.value = "large"
+):
+    import datetime
+    import time
+    from .fileHandler import (
+        ignoreAlreadyProcessed,
+        ignoreAirtIgnoreFiles,
+    )
+    from .transcriber import (
+        generateTranscriptLocally,
+        getTranscriptInOutPaths,
+        writeToFile,
+    )
+
+    filefilter = FileFilters.getFilter(filefilter)
+
+    filePairs = getTranscriptInOutPaths(inputpath, outputfolder, "local", filefilter)
+    # Get only the ones that aren't processed
+    filePairs = ignoreAlreadyProcessed(filePairs)
+    filePairs = ignoreAirtIgnoreFiles(filePairs)
+    if len(filePairs) == 0:
+        logger.info("No files to transcribe... Exiting!")
+        return
+    
+    def process(progress: Progress, inputPath: Path, outputPath: Path):
+        logger.info(f'Transcribing with API with file "{inputPath}"')
+
+        try:
+            start = time.time()
+            transcript = generateTranscriptLocally(inputPath, model, progress=progress)
+            end = time.time()
+            logger.info(
+                f"Transcription time: {datetime.timedelta(seconds=(end-start))}"
+            )
+            writeToFile(transcript, outputPath)
+        except Exception as err:
+            logger.error(
+                f"Encountered error while transcribing and saving '{outputPath}'"
+            )
+            logger.error(err)
+
+    templateProcessCommand(process, filePairs)
+
+
+
 # TODO add fileFilter choice in typer function
 @app.command(rich_help_panel="AI commands")
 def transcribeWithAPI(
@@ -251,7 +307,11 @@ def transcribeWithAPI(
         getTranscriptInOutPaths,
         writeToFile,
     )
-    from .fileHandler import getLength_old, ignoreAlreadyProcessed, ignoreAirtIgnoreFiles
+    from .fileHandler import (
+        getLength_old,
+        ignoreAlreadyProcessed,
+        ignoreAirtIgnoreFiles,
+    )
 
     filefilter = FileFilters.getFilter(filefilter)
 
@@ -300,7 +360,11 @@ def tomp3(
     filetypes: InputTypes.tomp3_filetypes.value = [e for e in ToMp3_FileTypes],
 ):
     """Convert diverse mediafiles to mp3"""
-    from .fileHandler import base_getInOutPaths, ignoreAlreadyProcessed, ignoreAirtIgnoreFiles
+    from .fileHandler import (
+        base_getInOutPaths,
+        ignoreAlreadyProcessed,
+        ignoreAirtIgnoreFiles,
+    )
 
     # Convert to mp3 if there are any files that does not have a mp3
     # TODO Move to converting of types to its own command, a bit to complex to have it in this one, replace the mp4tomp3 function with this new function
@@ -364,7 +428,7 @@ def summarizeTranscripts(
         accepted = templatePriceEstimate(filePairs, costEstimateMethod)
         if not accepted:
             return
-    
+
     def process(progress: Progress, inputPath: Path, outputPath: Path):
         task = progress.add_task("Summarizing...", total=None)
         # TODO add so that the full response object is saved to a pickle file, makes it easier to revisit it later on
@@ -388,12 +452,16 @@ def structureTranscripts(
     outputfolder: InputTypes.outputfolder.value = None,
     pdf: InputTypes.pdf.value = False,
     y: InputTypes.autoaccept_prompts.value = False,
-    attempts: int = 2
+    attempts: int = 2,
 ):
     """Note: Experimental! Structures a raw text transcript into paragraphs with headings using GPT-4 API"""
     from .price import gpt_4_1106_preview, Price
     from .summarizer import getSummaryInOutPaths, saveObjectToPkl
-    from .fileHandler import makeSureFolderExists, ignoreAlreadyProcessed, ignoreAirtIgnoreFiles
+    from .fileHandler import (
+        makeSureFolderExists,
+        ignoreAlreadyProcessed,
+        ignoreAirtIgnoreFiles,
+    )
     from .textStructurer import (
         sectionListToMarkdown,
         getStructureFromGPT,
@@ -447,16 +515,20 @@ def structureTranscripts(
     logger.info("Structuring transcripts")
 
     # for loop to rerun the structuring since it is somewhat unstable
-    for i in range(1, attempts+1):
+    for i in range(1, attempts + 1):
         try:
             templateProcessCommand(processing, filePairs)
         except ValueError as e:
             logger.debug(e)
-            logger.warning(f"The structuring of the transcript faile on attempt {i} of {attempts}...{' Trying again!' if i != attempts else ''}")
+            logger.warning(
+                f"The structuring of the transcript faile on attempt {i} of {attempts}...{' Trying again!' if i != attempts else ''}"
+            )
             if i == attempts:
-                logger.error("All attempts at structuring the transcript failed... Skipping!")
+                logger.error(
+                    "All attempts at structuring the transcript failed... Skipping!"
+                )
         else:
-            break # If it was successful exit the loop
+            break  # If it was successful exit the loop
 
     # print(f"Finished, estimated spending is: {estimatedEndPrice}")
 
@@ -473,7 +545,12 @@ def trimsilence(
     ] = False,
 ):
     """Trim the silence from mp4 video, AI transcription can often get confused if there are to much silence in a clip and start halucinating"""
-    from .fileHandler import base_getInOutPaths, trimSilence, ignoreAlreadyProcessed, ignoreAirtIgnoreFiles
+    from .fileHandler import (
+        base_getInOutPaths,
+        trimSilence,
+        ignoreAlreadyProcessed,
+        ignoreAirtIgnoreFiles,
+    )
     from .UI import genProgressTable
 
     filePairs = base_getInOutPaths(
@@ -515,7 +592,7 @@ def mdToPdf(
         base_getInOutPaths,
         makeSureFolderExists,
         ignoreAlreadyProcessed,
-        ignoreAirtIgnoreFiles
+        ignoreAirtIgnoreFiles,
     )
 
     filePairs = base_getInOutPaths(inputpaths, outputfolder, "**/*.md", "", "", "pdf")
@@ -530,12 +607,15 @@ def mdToPdf(
             runCommand(f'pandoc "{inputFile}" -o "{outputFile}"')
             progress.update(pandoc_task, advance=1)
 
+
 @app.command()
 def ingest_and_process():
     import importlib
     import sys
 
-    spec = importlib.util.spec_from_file_location("ingest_and_process", f"{USER_DIR}/ingest_and_process.py")
+    spec = importlib.util.spec_from_file_location(
+        "ingest_and_process", f"{USER_DIR}/ingest_and_process.py"
+    )
     foo = importlib.util.module_from_spec(spec)
     sys.modules["ingest_and_process"] = foo
     spec.loader.exec_module(foo)
@@ -553,5 +633,3 @@ def pdfToMd(inputfile: Path, outputfile: Path):
     from .PDFContentExtractor import pdf2md
 
     pdf2md(inputfile, outputfile)
-
-

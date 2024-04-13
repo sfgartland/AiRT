@@ -1,9 +1,8 @@
+from enum import Enum
 from openai import OpenAI
 
-try:
-    import whisper
-except ImportError:
-    localTranscriptionDisabled = True
+import whisper
+
 
 import os
 import glob
@@ -37,8 +36,8 @@ def generateTranscriptWithApi(inputFile, lengths=15*60, progress=None):
     logger.info("Finished cutting up the input file!")
     # outputFolderClippings = Path("workbench/cut_audio-900-temp-2024-Jan-11--12-47-23-299137")
     segments = glob.glob(str(Path(outputFolderClippings / "*.mp3").as_posix()))
-
-    api_task = progress.add_task("Transcribing chunks through api... ", total=len(segments))
+    if progress is not None:
+        api_task = progress.add_task("Transcribing chunks through api... ", total=len(segments))
 
     transcript = ""
     for segment in segments:
@@ -50,13 +49,29 @@ def generateTranscriptWithApi(inputFile, lengths=15*60, progress=None):
             prompt=transcript,
         )
         transcript = transcript + apiResponse.text
-        progress.update(api_task, advance=1)
+        if progress is not None:
+            progress.update(api_task, advance=1)
     return transcript
 
 
-def generateTranscriptLocally(input, model):
+class WhisperModels(str, Enum):
+    moviepy = "moviepy"
+    ffmpeg = "ffmpeg"
+
+# TODO Make the models into a proper type
+def generateTranscriptLocally(input, model="large", progress=None):
     # Using `verbose=False` to get progressbar
-    result = model.transcribe(str(input), verbose=False)
+    # TODO I removed the verbose param to test a bit, add again if I want progressbar
+
+    logger.info("loading whisper model...")
+    model = whisper.load_model(model)
+    logger.info("Loaded model, starting transcription...")
+
+    if progress is not None:
+        trans_task = progress.add_task("Transcribing file", total=None)
+    result = model.transcribe(str(input))
+    if progress is not None:
+        progress.update(trans_task, completed=1, total=1)
     # logger.info(result)
     return result["text"]
 
