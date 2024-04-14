@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "AI_research_tools"
 readme = "README.md"
-version = "0.0.1dev1"
+version = "0.0.2dev1"
 description = "Tools for processing academic resources with AI"
 authors = ["Severin Gartland <sfgartland@hotmail.com>"]
 

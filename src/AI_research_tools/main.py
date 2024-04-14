@@ -626,6 +626,9 @@ def voicerestore(
     inputpaths: InputTypes.inputpaths.value,
     outputfolder: InputTypes.outputfolder.value = None,
     cuda: InputTypes.cuda.value = False,
+    preprocess: Annotated[
+        bool, typer.Option(help="Preprocess, helps with high-pitch hizz")
+    ] = False,
 ):
     """Restore/enhance voice using AI model"""
     from .UI import genProgressTable
@@ -661,7 +664,9 @@ def voicerestore(
             # )
 
             wavFile = ripWav(inputFile, progress=progress)
-            restoredWavFile = restoreVoice(wavFile, cuda=cuda, progress=progress) # TODO add progress object to this one
+            restoredWavFile = restoreVoice(
+                wavFile, cuda=cuda, preprocess=preprocess, progress=progress
+            )  # TODO add progress object to this one
             # restoredWavFile = wavFile
             time.sleep(2)
             mergedVideoFile = replaceAudioMp4(
