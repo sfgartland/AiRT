@@ -2,6 +2,7 @@ import asyncio
 import math
 import subprocess
 import shutil
+from types import NoneType
 from typing import List
 from pydub import AudioSegment
 from pydub.silence import detect_leading_silence, detect_nonsilent
@@ -29,7 +30,8 @@ from moviepy.video.io.ffmpeg_tools import ffmpeg_extract_subclip
 
 # from ffmpeg_progress_yield import FfmpegProgress
 
-DEFAULT_WORKBENCH_FOLDER = (USER_DIR / "workbench")
+DEFAULT_WORKBENCH_FOLDER = USER_DIR / "workbench"
+
 
 def generateWorkbenchPath(inputFile, workbenchPath=DEFAULT_WORKBENCH_FOLDER):
     makeSureFolderExists(workbenchPath)
@@ -172,6 +174,58 @@ def cutAudio(input: Path, outputFolder: Path, lengthDuration: int, progress=None
     return outputFolder
 
 
+def ripWav(inputfile: Path, outputfile:Path=None, progress=None):
+    if outputfile is None:
+        outputfile = generateWorkbenchPath("audioenchanger_input.wav")
+
+    if progress is not None:
+        totalLength = getLength(inputfile)
+        rip_task = progress.add_task("Ripping wav file...", total=totalLength)
+
+    progressCallback = (
+        lambda x: progress.update(rip_task, completed=x)
+        if progress is not None
+        else None
+    )
+
+    asyncio.run(
+        runFfmpegCommandAsync(
+            f'ffmpeg -i "{inputfile}" "{outputfile}"', progressCallback=progressCallback
+        )
+    )
+
+    if progress is not None:
+        progress.update(rip_task, completed=totalLength)
+
+    return outputfile
+
+def replaceAudioMp4(inputvideo: Path, inputaudio: Path, outputfile: Path = None, progress=None):
+    if outputfile is None:
+        outputfile = generateWorkbenchPath("replaced_audio.mp4")
+    
+    if progress is not None:
+        totalLength = getLength(inputvideo)
+        rip_task = progress.add_task("Replacing audio in mp4 file...", total=totalLength)
+
+    progressCallback = (
+        lambda x: progress.update(rip_task, completed=x)
+        if progress is not None
+        else None
+    )
+    asyncio.run(
+        runFfmpegCommandAsync(
+            f'ffmpeg -i "{inputvideo}" -i "{inputaudio}" -c:v copy -map 0:v:0 -map 1:a:0 "{outputfile}"', progressCallback=progressCallback
+        )
+    )
+
+    if progress is not None:
+        progress.update(rip_task, completed=totalLength)
+
+    return outputfile
+
+
+
+
 def trimSilence(
     videoFile,
     outputFile,
@@ -310,9 +364,11 @@ def getCommonParent(files: list[Path]):
 
     return commonFolder
 
+
 def ignoreAlreadyProcessed(filePairs: FilePairsType):
     ignoreFilePairs = [filePair for filePair in filePairs if filePair[1].is_file()]
     return [filePair for filePair in filePairs if filePair not in ignoreFilePairs]
+
 
 # TODO Improve to also accept .gitignore style content in the file, allowing to name ignored files
 def ignoreAirtIgnoreFiles(filePairs: FilePairType):
@@ -325,7 +381,9 @@ def ignoreAirtIgnoreFiles(filePairs: FilePairType):
         end = False
         while not ignore and not end:
             ignore = (currentPath / ".airtignore").is_file()
-            end = currentPath == lastPath # TODO This is not a great way to check if it should be ignored, recode
+            end = (
+                currentPath == lastPath
+            )  # TODO This is not a great way to check if it should be ignored, recode
             lastPath = currentPath
             currentPath = currentPath.parent
         if ignore:
@@ -337,7 +395,7 @@ def ignoreAirtIgnoreFiles(filePairs: FilePairType):
 
 def base_getInOutPaths(
     inputPath: str | Path | List[Path],
-    outputFolder: str | Path,
+    outputFolder: str | Path | NoneType,
     pattern: str | List[str],
     prefix: str,
     postfix: str,
@@ -364,7 +422,7 @@ def base_getInOutPaths(
                 [Path(file) for file in glob.glob(f"{inputPath}/{pat}", recursive=True)]
                 for pat in pattern
             ]
-            inputFiles = sum(inputFiles, []) # Flatten list
+            inputFiles = sum(inputFiles, [])  # Flatten list
         else:
             inputFolder = inputPath.parent
             inputFiles = [
@@ -374,7 +432,7 @@ def base_getInOutPaths(
         inputFolder = getCommonParent(inputPath)
         inputFiles = inputPath
 
-    if not outputFolder:
+    if outputFolder is None:
         outputFolder = inputFolder
 
     if outputFolder.suffix != "":

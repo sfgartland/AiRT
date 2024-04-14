@@ -58,6 +58,15 @@
             "justMyCode": true
         },
         {
+            "name": "voice restore",
+            "type": "python",
+            "request": "launch",
+            "module": "AI_research_tools",
+            "args": ["voicerestore", "output/Houlgate Science of Logic/short test video.mp4"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
             "name": "tomp3",
             "type": "python",
             "request": "launch",

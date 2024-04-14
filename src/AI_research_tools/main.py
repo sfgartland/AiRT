@@ -244,7 +244,7 @@ def transcribeLocally(
     inputpath: InputTypes.inputpaths.value,
     outputfolder: InputTypes.outputfolder.value = None,
     filefilter: InputTypes.filefilter.value = FileFilters.none,
-    model: InputTypes.whispermodels.value = "large"
+    model: InputTypes.whispermodels.value = "large",
 ):
     import datetime
     import time
@@ -267,7 +267,7 @@ def transcribeLocally(
     if len(filePairs) == 0:
         logger.info("No files to transcribe... Exiting!")
         return
-    
+
     def process(progress: Progress, inputPath: Path, outputPath: Path):
         logger.info(f'Transcribing with API with file "{inputPath}"')
 
@@ -286,7 +286,6 @@ def transcribeLocally(
             logger.error(err)
 
     templateProcessCommand(process, filePairs)
-
 
 
 # TODO add fileFilter choice in typer function
@@ -620,6 +619,58 @@ def ingest_and_process():
     sys.modules["ingest_and_process"] = foo
     spec.loader.exec_module(foo)
     foo.main()
+
+
+@app.command(rich_help_panel="AI commands")
+def voicerestore(
+    inputpaths: InputTypes.inputpaths.value,
+    outputfolder: InputTypes.outputfolder.value = None,
+    cuda: InputTypes.cuda.value = False,
+):
+    """Restore/enhance voice using AI model"""
+    from .UI import genProgressTable
+    from .fileHandler import (
+        base_getInOutPaths,
+        ignoreAirtIgnoreFiles,
+        ignoreAlreadyProcessed,
+        ripWav,
+        replaceAudioMp4,
+    )
+    from .voiceRestorer import restoreVoice
+    import shutil
+    import time
+
+    filePairs = base_getInOutPaths(
+        inputpaths, outputfolder, "**/*.mp4", "enhanced_voice_", "", "mp4"
+    )
+    # Get only the ones that aren't processed
+    filePairs = ignoreAlreadyProcessed(filePairs)
+    filePairs = ignoreAirtIgnoreFiles(filePairs)
+
+    entries = [[str(pair[0]), Progress(console=console)] for pair in filePairs]
+    progressTable = lambda completed: genProgressTable(entries, completed)
+    outputs = []
+    with Live(progressTable(0), refresh_per_second=4, console=console) as live:
+        for index, entry in enumerate(entries):
+            _, progress = entry
+            inputFile, outputFile = filePairs[index]
+            logger.info("Restoring voice in audio!")
+
+            # trimSilence(
+            #     inputFile, outputFile, only_leading=only_leading, progress=progress
+            # )
+
+            wavFile = ripWav(inputFile, progress=progress)
+            restoredWavFile = restoreVoice(wavFile, cuda=cuda, progress=progress) # TODO add progress object to this one
+            # restoredWavFile = wavFile
+            time.sleep(2)
+            mergedVideoFile = replaceAudioMp4(
+                inputFile, restoredWavFile, progress=progress
+            )
+
+            shutil.move(mergedVideoFile, outputFile)
+
+            live.update(progressTable(index + 1))
 
 
 @app.command()

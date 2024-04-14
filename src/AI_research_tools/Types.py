@@ -78,4 +78,11 @@ class InputTypes(Enum):
         )
     ]
 
+    cuda: TypeAlias = Annotated[
+        bool,
+        typer.Option(
+            help="Should GPU be used?"
+        ),
+    ]
+
     pdf: TypeAlias = Annotated[bool, typer.Option(help="Set for converting markdown file to PDF once done")]
