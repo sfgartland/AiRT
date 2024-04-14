@@ -13,7 +13,7 @@ def restoreVoice(inputfile, outputfile=None, cuda=False, progress=None):
         restore_task = progress.add_task("Restoring voice...", total=None)
 
     vf = VoiceFixer()
-    vf.restore(input=inputfile, output=outputfile, cuda=cuda, mode=1)
+    vf.restore(input=inputfile, output=outputfile, cuda=cuda, mode=0)
     if progress is not None:
         progress.update(restore_task, completed=1, total=1)
 
