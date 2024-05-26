@@ -1,8 +1,10 @@
 from enum import Enum
 from openai import OpenAI
 
-import whisper
-
+try:
+    import whisper
+except ImportError:
+    whisper = None
 
 import os
 import glob
@@ -60,6 +62,9 @@ class WhisperModels(str, Enum):
 
 # TODO Make the models into a proper type
 def generateTranscriptLocally(input, model="large", progress=None):
+    if whisper is None:
+        raise ImportError("The Whisper package is not installed, it is needed to do local transcription. Please install the right optional dependencies!")
+
     # Using `verbose=False` to get progressbar
     # TODO I removed the verbose param to test a bit, add again if I want progressbar
 

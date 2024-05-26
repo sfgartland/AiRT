@@ -1,12 +1,12 @@
 # TODO Add a command to run nougat here
 import datetime
 
-# try:
-from marker.convert import convert_single_pdf
-from marker.models import load_all_models
-# except ImportError:
-    # pdfProcessingDisabled = True
-    # print("Failed to load pdf processing libraries")
+try:
+    from marker.convert import convert_single_pdf
+    from marker.models import load_all_models
+except ImportError:
+    NO_MARKER_LIB = True
+
 
 import json
 
@@ -18,6 +18,9 @@ from pathlib import Path
 
 
 def pdf2md(inputPDF: Path, outputMD: Path):
+    if NO_MARKER_LIB:
+        raise ImportError("Marker lib is not installed. Please reinstall this package with the right optional dependencies!")
+
     logger.info(f"Converting PDF to Markdown: {inputPDF}->{outputMD}")
     startTime = time.time()
 
